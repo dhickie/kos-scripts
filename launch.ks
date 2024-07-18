@@ -44,19 +44,12 @@ function circulariseOrbit {
     local requiredVelocity is calculateOrbitVelocity(kerbin:radius + ship:apoapsis).
     local deltaV is requiredVelocity - velocityAtApoapsis:mag.
 
-    // Add the burn to the flight plan (for visuals)
+    // Add the burn to the flight plan
     local burnNode is node(timeSpan(eta:apoapsis), 0, 0, deltaV).
     add burnNode.
 
-    // Wait until the burn should start
-    local burnDuration is calculateManeuverBurnTime(burnNode).
-    local waitTime is eta:apoapsis - (burnDuration / 2).
-    wait waitTime.
-
-    // Perform the burn, tailing down to 0 for an accurate burn
-    lock throttle to max((requiredVelocity - ship:velocity:orbit:mag)/50, 0.05).
-    wait until ship:velocity:orbit:mag >= requiredVelocity.
-    lock throttle to 0.
+    // Execute the burn
+    executeManeuver(burnNode).
 }
 
 function calculateGravityTurn {
@@ -68,6 +61,37 @@ function calculateOrbitVelocity {
     parameter orbitRadius. // From the centre of mass
 
     return sqrt(kerbin:mu / orbitRadius).
+}
+
+function executeManeuver {
+    parameter mnv.
+
+    // Point at the burn vector
+    local originalBurnVector is mnv:burnVector.
+    lock steering to mnv:burnVector.
+
+    // Calculate when we need to start throttling down to avoid overshooting
+    lock rampDownPoint to ship:availableThrust / ship:mass.
+
+    // Wait until the burn should begin
+    local burnDuration is calculateManeuverBurnTime(mnv).
+    local waitTime is mnv:eta - (burnDuration / 2).
+    wait waitTime.
+
+    // Begin the burn
+    lock throttle to 1.
+
+    // Wait until we get towards the end of the burn
+    wait until mnv:burnVector:mag < 200.
+
+    // Set the throttle to ramp down as we approach target velocity
+    lock throttle to max(mnv:burnVector:mag / rampDownPoint, 0.05).
+
+    // Wait until the current burn vector has deviated by 30 degrees from the original
+    // burn vector, then kill the throttle
+    wait until vAng(originalBurnVector, mnv:burnVector) >= 30.
+    lock throttle to 0.
+    unlock steering.
 }
 
 function calculateManeuverBurnTime {
