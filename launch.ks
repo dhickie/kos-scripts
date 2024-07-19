@@ -1,9 +1,7 @@
 
-function main {
+function launchMain {
     doLaunch().
     circulariseOrbit().
-    //matchTargetInclination().
-    wait until false.
 }
 
 function doLaunch {
@@ -50,6 +48,8 @@ function circulariseOrbit {
 
     // Execute the burn
     executeManeuver(burnNode).
+
+    remove burnNode.
 }
 
 function calculateGravityTurn {
@@ -64,4 +64,4 @@ function calculateOrbitVelocity {
 }
 
 runPath("0:/utility.ks").
-main().
+launchMain().

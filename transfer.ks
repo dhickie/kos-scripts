@@ -1,4 +1,4 @@
-function main {
+function transferMain {
     matchTargetInclination().
     // performTransferBurn().
     // performRetroBurn().
@@ -17,7 +17,7 @@ function matchTargetInclination {
     local burnEta is calculateInclinationBurnEta(shipNormal, targetNormal).
 
     // Calculate the burn required to match the target inclination
-    local burnNode is calculateInclinationBurn(burnEta).
+    local burnNode is calculateInclinationBurn(burnEta, targetNormal).
     add burnNode.
 
     executeManeuver(burnNode).    
@@ -48,12 +48,12 @@ function calculateInclinationBurn {
     parameter burnEta, targetNormal.
 
     // Calculate the ship's current velocity at that time
-    local shipStartingVelocity is velocityAt(ship, time:seconds + burnEta).
+    local shipStartingVelocity is velocityAt(ship, time:seconds + burnEta):orbit.
 
     // Calculate the final velocity at that time, after the burn
     // (the same direction as the target's velocity, with the ship's velocity's starting magnitude)
     local targetNodeEta is calculateNodeEta(inclinationBurnNodeVector, targetNormal, mun).
-    local targetVelocity is velocityAt(mun, time:seconds + targetNodeEta).
+    local targetVelocity is velocityAt(mun, time:seconds + targetNodeEta):orbit.
     local shipFinalVelocity is targetVelocity.
     set shipFinalVelocity:mag to shipStartingVelocity:mag.
 
@@ -67,7 +67,7 @@ function createNodeFromDeltaV {
     parameter nodeEta, deltaV.
 
     // Get the prograde, normal & radial vectors for the ship
-    local progradeVector is velocityAt(ship, time:seconds + nodeEta):normalized.
+    local progradeVector is velocityAt(ship, time:seconds + nodeEta):orbit:normalized.
     local normalVector is vCrs(ship:body:position, progradeVector):normalized.
     local radialVector is -ship:body:position:normalized.
 
@@ -174,4 +174,4 @@ function calculateMeanAnomalyFromEccentricAnomaly {
 }
 
 runPath("0:/utility.ks").
-main().
+transferMain().
