@@ -6,18 +6,25 @@ function main {
 
 // Assumes target is orbiting the same body as the ship
 function matchTargetInclination {
+    // Needed later to calculate when the target is going to cross the line of AN/DN nodes
+    global inclinationBurnNodeVector is v(0, 0, 0).
+
+    // Calculate the normal vectors of the two orbits
+    local shipNormal is calculateShipOrbitNormal().
+    local targetNormal is calculateTargetOrbitNormal(mun).
+
     // Calculate how long until we need to burn to match inclination
-    local burnEta is calculateInclinationBurnEta().
+    local burnEta is calculateInclinationBurnEta(shipNormal, targetNormal).
 
     // Calculate the burn required to match the target inclination
     local burnNode is calculateInclinationBurn(burnEta).
+    add burnNode.
 
+    executeManeuver(burnNode).    
 }
 
 function calculateInclinationBurnEta {
-    // Calculate the orbit normals of the ship and the target
-    local shipNormal is calculateShipOrbitNormal().
-    local targetNormal is calculateTargetOrbitNormal(mun).
+    parameter shipNormal, targetNormal.
 
     // Calculate the vector of the ascending node - this is always shipNormal x targetNormal.
     // Descending node is targetNormal x shipNormal
@@ -29,24 +36,47 @@ function calculateInclinationBurnEta {
 
     // Return whichever is soonest, and let the rest of the script which we've chosen
     if ascendingNodeEta < descendingNodeEta {
-        global inclinationBurnNodeVector is nodeVector.
+        set inclinationBurnNodeVector to nodeVector.
         return ascendingNodeEta.
     } else {
-        global inclinationBurnNodeVector is -nodeVector.
+        set inclinationBurnNodeVector to -nodeVector.
         return descendingNodeEta.
     }
 }
 
 function calculateInclinationBurn {
-    parameter burnEta.
+    parameter burnEta, targetNormal.
 
     // Calculate the ship's current velocity at that time
     local shipStartingVelocity is velocityAt(ship, time:seconds + burnEta).
 
     // Calculate the final velocity at that time, after the burn
     // (the same direction as the target's velocity, with the ship's velocity's starting magnitude)
-    local targetNodeEta is calculateNodeEta(inclinationBurnNodeVector, targetNormal, mun)
-    local targetVelocity is velocity
+    local targetNodeEta is calculateNodeEta(inclinationBurnNodeVector, targetNormal, mun).
+    local targetVelocity is velocityAt(mun, time:seconds + targetNodeEta).
+    local shipFinalVelocity is targetVelocity.
+    set shipFinalVelocity:mag to shipStartingVelocity:mag.
+
+    // Get the burn deltaV by subtracting final from initial velocity
+    local deltaV is shipFinalVelocity - shipStartingVelocity.
+
+    return createNodeFromDeltaV(burnEta, deltaV).
+}
+
+function createNodeFromDeltaV {
+    parameter nodeEta, deltaV.
+
+    // Get the prograde, normal & radial vectors for the ship
+    local progradeVector is velocityAt(ship, time:seconds + nodeEta):normalized.
+    local normalVector is vCrs(ship:body:position, progradeVector):normalized.
+    local radialVector is -ship:body:position:normalized.
+
+    // Use dot products to project deltaV onto each node component
+    local progradeDeltaV is vDot(deltaV, progradeVector).
+    local normalDeltaV is vDot(deltaV, normalVector).
+    local radialDeltaV is vDot(deltaV, radialVector).
+
+    return node(timeSpan(nodeEta), radialDeltaV, normalDeltaV, progradeDeltaV).
 }
 
 function calculateShipOrbitNormal {
@@ -96,7 +126,7 @@ function calculatePeriapsisVector {
 
     local periapsisEta is orbitable:orbit:eta:periapsis.
 
-    local positionAtPeriapsisRelativeToShip is positionAt(orbitable, timeSpan(time:seconds + periapsisEta)).
+    local positionAtPeriapsisRelativeToShip is positionAt(orbitable, time:seconds + periapsisEta).
     return positionAtPeriapsisRelativeToShip - orbitable:body:position.
 }
 
@@ -143,4 +173,5 @@ function calculateMeanAnomalyFromEccentricAnomaly {
     return eccentricAnomaly - (e * sin(eccentricAnomaly)).
 }
 
+runPath("0:/utility.ks").
 main().
