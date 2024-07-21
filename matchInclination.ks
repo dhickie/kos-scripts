@@ -1,26 +1,25 @@
-function transferMain {
-    matchTargetInclination().
-    // performTransferBurn().
-    // performRetroBurn().
-}
+function matchInclinationMain {
+    set target to minmus.
 
-// Assumes target is orbiting the same body as the ship
-function matchTargetInclination {
-    // Needed later to calculate when the target is going to cross the line of AN/DN nodes
-    global inclinationBurnNodeVector is v(0, 0, 0).
+    // Needed later to calculate which direction to burn in to match inclination
+    print "Calculating ascending/descending nodes".
+    global inclinationBurnNodeType is "".
 
     // Calculate the normal vectors of the two orbits
     local shipNormal is calculateShipOrbitNormal().
-    local targetNormal is calculateTargetOrbitNormal(mun).
+    local targetNormal is calculateTargetOrbitNormal().
 
     // Calculate how long until we need to burn to match inclination
+    print "Determining closest node".
     local burnEta is calculateInclinationBurnEta(shipNormal, targetNormal).
 
     // Calculate the burn required to match the target inclination
-    local burnNode is calculateInclinationBurn(burnEta, targetNormal).
+    print "Calculating inclination burn".
+    local burnNode is calculateInclinationBurn(burnEta).
     add burnNode.
 
-    executeManeuver(burnNode).    
+    print "Executing inclination burn".
+    executeManeuver(burnNode).  
 }
 
 function calculateInclinationBurnEta {
@@ -36,26 +35,32 @@ function calculateInclinationBurnEta {
 
     // Return whichever is soonest, and let the rest of the script which we've chosen
     if ascendingNodeEta < descendingNodeEta {
-        set inclinationBurnNodeVector to nodeVector.
+        print "Burning at ascending node".
+        set inclinationBurnNodeType to "ascending".
         return ascendingNodeEta.
     } else {
-        set inclinationBurnNodeVector to -nodeVector.
+        print "Burning at descending node".
+        set inclinationBurnNodeType to "descending".
         return descendingNodeEta.
     }
 }
 
 function calculateInclinationBurn {
-    parameter burnEta, targetNormal.
+    parameter burnEta.
 
     // Calculate the ship's current velocity at that time
     local shipStartingVelocity is velocityAt(ship, time:seconds + burnEta):orbit.
 
     // Calculate the final velocity at that time, after the burn
-    // (the same direction as the target's velocity, with the ship's velocity's starting magnitude)
-    local targetNodeEta is calculateNodeEta(inclinationBurnNodeVector, targetNormal, mun).
-    local targetVelocity is velocityAt(mun, time:seconds + targetNodeEta):orbit.
-    local shipFinalVelocity is targetVelocity.
-    set shipFinalVelocity:mag to shipStartingVelocity:mag.
+    // Same magnitude as starting velocity, but rotated to have the same inclination as the target
+    local inclinationChange is abs(ship:orbit:inclination - target:orbit:inclination).
+    local radialVector is -ship:body:position.
+    local shipFinalVelocity is v(0,0,0).
+    if (inclinationBurnNodeType = "ascending") {
+        set shipFinalVelocity to rotateVectorAboutAxis(shipStartingVelocity, radialVector, inclinationChange).
+    } else {
+        set shipFinalVelocity to rotateVectorAboutAxis(shipStartingVelocity, radialVector, -inclinationChange).
+    }
 
     // Get the burn deltaV by subtracting final from initial velocity
     local deltaV is shipFinalVelocity - shipStartingVelocity.
@@ -87,13 +92,11 @@ function calculateShipOrbitNormal {
 }
 
 function calculateTargetOrbitNormal {
-    parameter transferTarget.
-
     // Positions are relative to the ship, so the position of the target
     // needs to be subtracted from the position of the body the target orbits
     // to get the position vector from the target to the body
-    local targetPosition is ship:body:position - transferTarget:position.
-    local targetVelocity is transferTarget:velocity:orbit.
+    local targetPosition is ship:body:position - target:position.
+    local targetVelocity is target:velocity:orbit.
 
     return vCrs(targetPosition, targetVelocity).
 }
@@ -160,8 +163,7 @@ function calculateEccentricAnomalyFromTrueAnomaly {
 
     local e is ship:orbit:eccentricity.
     local f is trueAnomaly.
-
-    return arcTan((sqrt(1-e^2) * sin(f)) / (e + cos(f))).
+    return arcTan2(sqrt(1-e^2) * sin(f), e + cos(f)).
 }
 
 // Calculates the mean anomaly from the true anomaly for the current orbit using Kepler's equation
@@ -174,4 +176,4 @@ function calculateMeanAnomalyFromEccentricAnomaly {
 }
 
 runPath("0:/utility.ks").
-transferMain().
+matchInclinationMain().
