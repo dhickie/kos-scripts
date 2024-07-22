@@ -15,16 +15,21 @@ function transferMain {
     // Calculate the ship's ETA at that point
     local nodeEta is calculateEtaFromVector(nodeVector, orbitNormal, ship).
 
-    // Calculate the required increase in velocity to reach projected apopasis
-    local requiredVelocity is calculateOrbitalVelocity(ship:body, ship:orbit:semimajoraxis, ship:orbit:semimajoraxis).
+    // Calculate the required increase in velocity to reach projected apoapsis
+    local requiredVelocity is calculateOrbitalVelocity(ship:body, ship:orbit:semimajoraxis, transferOrbit:semimajoraxis).
     local deltaV is requiredVelocity - ship:velocity:orbit:mag.
 
     // Refine the node with hill cimbing to reach desired final altitude
-    local initialNode is node(nodeEta, 0, 0, deltaV).
-    local refinedNode is hillClimb(initialNode, orbitScoringFunction@, 64).
+    local initialNode is node(timeSpan(nodeEta), 0, 0, deltaV).
+    local refinedNode is hillClimb(initialNode, orbitScoringFunction@, 2).
 
+    // Execute the transfer burn
     add refinedNode.
     executeManeuver(refinedNode).
+
+    // Circularise the orbit around the target
+    local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
+    circulariseOrbit(timeToPeriapsis).
 }
 
 function calculateTransferOrbit {
@@ -57,17 +62,17 @@ function hillClimb {
     local scoreToBeat is scoringFunction(nodeToBeat).
 
     local modFactor is initialModFactor.
-    until modFactor < 1 {
+    until modFactor < 0.25 {
         local resultFound is false.
         until resultFound {
             local startingScore is scoreToBeat.
             local candidates is list(
-                node(nodeToBeat:eta, 0, 0, nodeToBeat:prograde + modFactor),
-                node(nodeToBeat:eta, 0, 0, nodeToBeat:prograde - 1),
-                node(nodeToBeat:eta + modFactor, 0, 0, nodeToBeat:prograde),
-                node(nodeToBeat:eta - modFactor, 0, 0, nodeToBeat:prograde),
-                node(nodeToBeat:eta + modFactor, 0, 0, nodeToBeat:prograde + modFactor),
-                node(nodeToBeat:eta - modFactor, 0, 0, nodeToBeat:prograde - modFactor)
+                node(timeSpan(nodeToBeat:eta), 0, 0, nodeToBeat:prograde + modFactor),
+                node(timeSpan(nodeToBeat:eta), 0, 0, nodeToBeat:prograde - modFactor),
+                node(timeSpan(nodeToBeat:eta + modFactor), 0, 0, nodeToBeat:prograde),
+                node(timeSpan(nodeToBeat:eta - modFactor), 0, 0, nodeToBeat:prograde),
+                node(timeSpan(nodeToBeat:eta + modFactor), 0, 0, nodeToBeat:prograde + modFactor),
+                node(timeSpan(nodeToBeat:eta - modFactor), 0, 0, nodeToBeat:prograde - modFactor)
             ).
 
             for candidate in candidates {
@@ -98,7 +103,7 @@ function orbitScoringFunction {
     // If the resulting orbit doesn't contain an encounter with the target body
     // then calculate the distance between the ship and the target at the apoapsis
     if not nodeToScore:orbit:hasNextPatch {
-        local timeToAp is ship:orbit:eta:apopasis.
+        local timeToAp is ship:orbit:eta:apoapsis.
         local shipPosAtAp is positionAt(ship, time:seconds + timeToAp).
         local targetPosAtAp is positionAt(target, time:seconds + timeToAp).
 

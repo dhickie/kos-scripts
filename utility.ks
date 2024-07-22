@@ -29,6 +29,7 @@ function executeManeuver {
     wait until vAng(originalBurnVector, mnv:burnVector) >= 30.
     lock throttle to 0.
     unlock steering.
+    remove mnv.
 }
 
 function calculateManeuverBurnTime {
@@ -163,4 +164,38 @@ function calculateOrbitalVelocity {
         semiMajorAxis. // The semi major axis of the orbit
 
     return sqrt(orbitBody:mu * ((2 / radius) - (1 / semiMajorAxis))).
+}
+
+// Circularises an orbit at the point the ship is at for the provided eta
+function circulariseOrbit {
+    parameter maneuverEta.
+
+    // Calculate required velocity
+    print "Calculating circularisation burn".
+    local bodyAtEta is getBodyAtEta(ship:orbit, maneuverEta).
+    local positionAtEta is positionAt(ship, time:seconds + maneuverEta).
+    local velocityAtEta is velocityAt(ship, time:seconds + maneuverEta).
+    local orbitalRadius is (positionAtEta - bodyAtEta:position):mag.
+    local requiredVelocity is calculateOrbitalVelocity(bodyAtEta, orbitalRadius, orbitalRadius).
+    local deltaV is requiredVelocity - velocityAtEta:orbit:mag.
+
+    // Add the burn to the flight plan
+    local burnNode is node(timeSpan(maneuverEta), 0, 0, deltaV).
+    add burnNode.
+
+    // Execute the burn
+    print "Executing circularisation burn".
+    executeManeuver(burnNode).
+}
+
+// Gets the body being orbited in the provided orbit at the provided eta
+function getBodyAtEta {
+    parameter calcOrbit, // The orbit to calculate the body for
+        calcEta. // The ETA at which to calculate the body
+
+    if calcOrbit:hasNextPatch and (calcOrbit:nextPatchEta < calcEta) {
+        return getBodyAtEta(calcOrbit:nextPatch, calcEta).
+    } else {
+        return calcOrbit:body.
+    }
 }

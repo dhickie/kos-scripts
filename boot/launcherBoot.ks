@@ -1,3 +1,4 @@
+wait until ship:unpacked.
 CORE:PART:GETMODULE("kOSProcessor"):DOEVENT("Open Terminal").
 
 if alt:radar > 70000 and ship:orbit:eccentricity < 1 {
