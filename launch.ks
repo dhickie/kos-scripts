@@ -68,5 +68,5 @@ function calculateOrbitVelocity {
     return sqrt(kerbin:mu / orbitRadius).
 }
 
-runPath("0:/utility.ks").
+runOncePath("0:/utility.ks").
 launchMain().
