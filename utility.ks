@@ -5,11 +5,9 @@ function executeManeuver {
     local originalBurnVector is mnv:burnVector.
     lock steering to mnv:burnVector.
 
-    // Calculate when we need to start throttling down to avoid overshooting
-    lock rampDownPoint to ship:availableThrust / ship:mass.
-
     // Wait until the burn should begin
-    local burnDuration is calculateManeuverBurnTime(mnv).
+    local burnDuration is calculateManeuverBurnTime(mnv:deltaV:mag).
+    print "Burn duration is " + burnDuration + " seconds".
     local waitTime is mnv:eta - (burnDuration / 2).
     wait waitTime.
 
@@ -20,6 +18,9 @@ function executeManeuver {
         // Wait until we get towards the end of the burn
         wait until mnv:burnVector:mag < 200.
     }
+
+    // Calculate when we need to start throttling down to avoid overshooting
+    local rampDownPoint is ship:availableThrust / ship:mass.
 
     // Set the throttle to ramp down as we approach target velocity
     lock throttle to max(mnv:burnVector:mag / rampDownPoint, 0.05).
@@ -33,18 +34,47 @@ function executeManeuver {
 }
 
 function calculateManeuverBurnTime {
-    parameter burnNode.
+    parameter mnvDeltaV, stageNumber is stage:number.
 
-    list engines in en.
-    // TODO figure out how to get thrust and isp of current stage
-    local thrust is en[1]:availableThrust.
-    local initialMass is ship:mass.
+    local deltaV is mnvDeltaV.
+    local stageDeltaV is ship:stageDeltaV(stageNumber):current.
+    local burnTime is 0.
+    if deltaV > stageDeltaV {
+        // Take the current stage's deltaV off the total deltaV and calculate
+        // the remaining burn time for the next stage
+        set burnTime to burnTime + calculateManeuverBurnTime(deltaV - stageDeltaV, stage:number - 1).
+        set deltaV to stageDeltaV.
+    }
+
+    // Get all the engines in the requested stage, and sum their thrust
+    // TODO Cope with different engines in the same stage (weighted average of per engine isp)
+    local thrust is 0.
+    local engineIsp is 0.
+    for engine in ship:engines {
+        if engine:stage = stageNumber {
+            set thrust to thrust + engine:possibleThrust.
+            set engineIsp to engine:ispAt(0).
+        }
+    }
+
+    local initialMass is shipMassAtStage(stageNumber).
     local e is constant():e.
-    local engineIsp is en[1]:ispAt(0).
     local g is 9.80665.
-    local deltaV is burnNode:deltaV:mag.
 
-    return g * initialMass * engineIsp * (1 - e^(-deltaV/(g * engineIsp))) / thrust.
+    return burnTime + (g * initialMass * engineIsp * (1 - e^(-deltaV/(g * engineIsp))) / thrust).
+}
+
+function shipMassAtStage {
+    parameter stageNumber.
+
+    local shipMass is ship:mass.
+    for part in ship:parts {
+        if part:decoupledIn >= stageNumber {
+            set shipMass to shipMass - part:mass.
+        }
+    }
+
+    return shipMass.
 }
 
 // Performs a rotation of a vector clockwise about an axis by the specified number of degrees
@@ -174,10 +204,13 @@ function circulariseOrbit {
     print "Calculating circularisation burn".
     local bodyAtEta is getBodyAtEta(ship:orbit, maneuverEta).
     local positionAtEta is positionAt(ship, time:seconds + maneuverEta).
-    local velocityAtEta is velocityAt(ship, time:seconds + maneuverEta).
-    local orbitalRadius is (positionAtEta - bodyAtEta:position):mag.
+    local bodyPositionAtEta is positionAt(bodyAtEta, time:seconds + maneuverEta).
+    local shipVelocityAtEta is velocityAt(ship, time:seconds + maneuverEta).
+    local bodyVelocityAtEta is velocityAt(bodyAtEta, time:seconds + maneuverEta).
+    local velocityAtEta is bodyVelocityAtEta:orbit - shipVelocityAtEta:orbit.
+    local orbitalRadius is (positionAtEta - bodyPositionAtEta):mag.
     local requiredVelocity is calculateOrbitalVelocity(bodyAtEta, orbitalRadius, orbitalRadius).
-    local deltaV is requiredVelocity - velocityAtEta:orbit:mag.
+    local deltaV is requiredVelocity - velocityAtEta:mag.
 
     // Add the burn to the flight plan
     local burnNode is node(timeSpan(maneuverEta), 0, 0, deltaV).

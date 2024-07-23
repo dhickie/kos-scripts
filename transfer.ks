@@ -21,7 +21,7 @@ function transferMain {
 
     // Refine the node with hill cimbing to reach desired final altitude
     local initialNode is node(timeSpan(nodeEta), 0, 0, deltaV).
-    local refinedNode is hillClimb(initialNode, orbitScoringFunction@, 2).
+    local refinedNode is hillClimb(initialNode, orbitScoringFunction@, orbitVelocityLimitFunction@, 2).
 
     // Execute the transfer burn
     add refinedNode.
@@ -56,6 +56,7 @@ function calculateTargetMovementDuringTransfer {
 function hillClimb {
     parameter initialNode, // The node to start from 
         scoringFunction, // A function delegate that scores nodes to determine if they've improved
+        velocityLimitFunction, // A function that limits the maximum velocity a node can reach
         initialModFactor. // The initial amount we should modify node parameters by in candidates
 
     local nodeToBeat is initialNode.
@@ -67,11 +68,11 @@ function hillClimb {
         until resultFound {
             local startingScore is scoreToBeat.
             local candidates is list(
-                node(timeSpan(nodeToBeat:eta), 0, 0, nodeToBeat:prograde + modFactor),
+                node(timeSpan(nodeToBeat:eta), 0, 0, velocityLimitFunction(nodeToBeat:prograde + modFactor)),
                 node(timeSpan(nodeToBeat:eta), 0, 0, nodeToBeat:prograde - modFactor),
                 node(timeSpan(nodeToBeat:eta + modFactor), 0, 0, nodeToBeat:prograde),
                 node(timeSpan(nodeToBeat:eta - modFactor), 0, 0, nodeToBeat:prograde),
-                node(timeSpan(nodeToBeat:eta + modFactor), 0, 0, nodeToBeat:prograde + modFactor),
+                node(timeSpan(nodeToBeat:eta + modFactor), 0, 0, velocityLimitFunction(nodeToBeat:prograde + modFactor)),
                 node(timeSpan(nodeToBeat:eta - modFactor), 0, 0, nodeToBeat:prograde - modFactor)
             ).
 
@@ -114,6 +115,22 @@ function orbitScoringFunction {
 
     remove nodeToScore.
     return score.
+}
+
+function orbitVelocityLimitFunction {
+    parameter vIn.
+
+    // Don't let the velocity exceed the amount that would place the apopasis at 100km
+    // past the target's apoapsis
+    local maxApoapsis is target:orbit:apoapsis.
+    local maxSma is (ship:orbit:semimajoraxis + maxApoapsis) / 2.
+    local orbitVelocity is calculateOrbitalVelocity(ship:body, ship:orbit:semimajoraxis, maxSma).
+
+    if vIn > orbitVelocity {
+        return orbitVelocity.
+    } else {
+        return vIn.
+    }
 }
 
 runOncePath("0:/utility.ks").

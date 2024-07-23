@@ -17,14 +17,6 @@ function doLaunch {
     // Launch
     stage.
 
-    // Setup launch staging trigger
-    local stageMaxThrust is ship:maxThrustAt(0).
-    when (ship:maxThrustAt(0) < stageMaxThrust) then {
-        if stage:ready {
-            stage.
-        }
-    }
-
     // Wait until start of gravity turn, and begin
     wait until alt:radar > 10000.
     print "Beginning gravity turn".
