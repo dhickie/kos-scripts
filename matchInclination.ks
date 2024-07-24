@@ -1,6 +1,4 @@
 function matchInclinationMain {
-    set target to minmus.
-
     // Needed later to calculate which direction to burn in to match inclination
     print "Calculating ascending/descending nodes".
     global inclinationBurnNodeType is "".

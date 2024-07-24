@@ -1,3 +1,5 @@
+parameter targetAltitude.
+
 function transferMain {
     // Calculate orbital period of transfer orbit
     local transferOrbit is calculateTransferOrbit().
@@ -108,9 +110,9 @@ function orbitScoringFunction {
         local shipPosAtAp is positionAt(ship, time:seconds + timeToAp).
         local targetPosAtAp is positionAt(target, time:seconds + timeToAp).
 
-        set score to abs((shipPosAtAp - targetPosAtAp):mag - 100000).
+        set score to abs((shipPosAtAp - targetPosAtAp):mag - target:radius - targetAltitude).
     } else {
-        set score to abs(nodeToScore:orbit:nextPatch:periapsis - 100000).
+        set score to abs(nodeToScore:orbit:nextPatch:periapsis - targetAltitude).
     }
 
     remove nodeToScore.
@@ -120,9 +122,9 @@ function orbitScoringFunction {
 function orbitVelocityLimitFunction {
     parameter vIn.
 
-    // Don't let the velocity exceed the amount that would place the apopasis at 100km
+    // Don't let the velocity exceed the amount that would place the apopasis at targetAltitude
     // past the target's apoapsis
-    local maxApoapsis is target:orbit:apoapsis.
+    local maxApoapsis is target:orbit:apoapsis + target:radius + targetAltitude.
     local maxSma is (ship:orbit:semimajoraxis + maxApoapsis) / 2.
     local orbitVelocity is calculateOrbitalVelocity(ship:body, ship:orbit:semimajoraxis, maxSma).
 

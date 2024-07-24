@@ -1,2 +1,2 @@
 CORE:PART:GETMODULE("kOSProcessor"):DOEVENT("Open Terminal").
-runPath("0:/missions/moon-orbiter.ks").
+runPath("0:/missions/mun-orbiter.ks").
