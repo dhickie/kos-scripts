@@ -14,11 +14,11 @@ when (stage:deltaV:current < 0.1) then {
 // Set target body
 set target to mun.
 
-launch().
+//launch().
 
-if abs(target:orbit:inclination - ship:orbit:inclination) > 0.2 {
-    matchInclination().
-}
+//if abs(target:orbit:inclination - ship:orbit:inclination) > 0.2 {
+//    matchInclination().
+//}
 
 transferToTarget(100000).
-circulariseOrbitAtAltitude(100000).
+//circulariseOrbitAtAltitude(100000).

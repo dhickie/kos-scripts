@@ -93,6 +93,7 @@ function hillClimb {
                 if (candidateScore < scoreToBeat) {
                     set nodeToBeat to candidate.
                     set scoreToBeat to candidateScore.
+                    print "Score to beat: " + scoreToBeat.
                 }
             }
 
@@ -111,19 +112,25 @@ function orbitScoringFunction {
     parameter nodeToScore.
 
     add nodeToScore.
-    local score is 0.
+
+    // Ideally, the ship should have the periapsis of it's orbit with the target body at the target altitude
+    // directly "behind" the body as it orbits (opposite it's velocity vector), to make the most advantage of a gravity assist
+    // and result in an anti-clockwise orbit.
 
     // If the resulting orbit doesn't contain an encounter with the target body
-    // then calculate the distance between the ship and the target at the apoapsis
+    // then calculate the distance between the ship and the target point at the apoapsis
+    local etaAtScoringPoint is 0.
     if not nodeToScore:orbit:hasNextPatch {
-        local timeToAp is ship:orbit:eta:apoapsis.
-        local shipPosAtAp is positionAt(ship, time:seconds + timeToAp).
-        local targetPosAtAp is positionAt(target, time:seconds + timeToAp).
-
-        set score to abs((shipPosAtAp - targetPosAtAp):mag - target:radius - targetAltitude).
+        set etaAtScoringPoint to nodeToScore:orbit:eta:apoapsis.
     } else {
-        set score to abs(nodeToScore:orbit:nextPatch:periapsis - targetAltitude).
+        set etaAtScoringPoint to nodeToScore:orbit:nextPatch:eta:periapsis.
     }
+
+    local bodyVelocity is velocityAt(target, time:seconds + etaAtScoringPoint):orbit.
+    local bodyPosition is positionAt(target, time:seconds + etaAtScoringPoint).
+    local targetPeriapsis is bodyVelocity:normalized * (targetAltitude + target:radius) * -1.
+    local shipPosition is positionAt(ship, time:seconds + etaAtScoringPoint) - bodyPosition.
+    local score is (targetPeriapsis - shipPosition):mag.
 
     remove nodeToScore.
     return score.
@@ -135,7 +142,7 @@ function orbitVelocityLimitFunction {
     // Don't let the velocity exceed the amount that would place the apopasis at targetAltitude
     // past the target's apoapsis
     local maxApoapsis is target:orbit:apoapsis + target:radius + targetAltitude.
-    local maxSma is (ship:orbit:semimajoraxis + maxApoapsis) / 2.
+    local maxSma is (ship:orbit:periapsis + maxApoapsis) / 2.
     local orbitVelocity is calculateOrbitalVelocity(ship:body, ship:orbit:semimajoraxis, maxSma).
 
     if vIn > orbitVelocity {
