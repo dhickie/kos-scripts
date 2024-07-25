@@ -1,4 +1,7 @@
-function matchInclinationMain {
+// Dependencies
+runOncePath("0:/utilities/utility.ks").
+
+function matchInclination {
     // Needed later to calculate which direction to burn in to match inclination
     print "Calculating ascending/descending nodes".
     global inclinationBurnNodeType is "".
@@ -98,6 +101,3 @@ function calculateTargetOrbitNormal {
 
     return vCrs(targetPosition, targetVelocity).
 }
-
-runOncePath("0:/utility.ks").
-matchInclinationMain().

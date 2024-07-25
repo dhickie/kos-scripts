@@ -1,5 +1,7 @@
+// Dependencies
+runOncePath("0:/utilities/utility.ks").
 
-function launchMain {
+function launch {
     doLaunch().
     circulariseOrbit(eta:apoapsis).
     
@@ -35,6 +37,3 @@ function calculateGravityTurn {
     local altAboveTurnPoint is alt:radar - 10000.
     return (6.25e-9 * altAboveTurnPoint^2) - (0.0015 * altAboveTurnPoint) + 84.375.
 }
-
-runOncePath("0:/utility.ks").
-launchMain().

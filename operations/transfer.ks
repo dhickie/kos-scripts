@@ -1,6 +1,13 @@
-parameter targetAltitude.
+// Script variables
+local targetAltitude is 0.
 
-function transferMain {
+// Dependencies
+runOncePath("0:/utilities/utility.ks").
+
+function transferToTarget {
+    parameter tgtAlt.
+    set targetAltitude to tgtAlt.
+
     // Calculate orbital period of transfer orbit
     local transferOrbit is calculateTransferOrbit().
     local transferDuration is transferOrbit:period  / 2.
@@ -134,6 +141,3 @@ function orbitVelocityLimitFunction {
         return vIn.
     }
 }
-
-runOncePath("0:/utility.ks").
-transferMain().

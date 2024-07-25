@@ -1,5 +1,7 @@
-set terminal:charHeight to 22.
-wait until ship:unpacked.
+// Dependencies
+runOncePath("0:/operations/launch.ks").
+runOncePath("0:/operations/matchInclination.ks").
+runOncePath("0:/operations/transfer.ks").
 
 // Setup staging trigger
 when (stage:deltaV:current < 0.1) then {
@@ -8,14 +10,14 @@ when (stage:deltaV:current < 0.1) then {
     preserve.
 }
 
+// Set target body
 set target to mun.
 
-runPath("0:/launch.ks").
+launch().
 
 if abs(target:orbit:inclination - ship:orbit:inclination) > 0.2 {
-    runPath("0:/matchInclination.ks").
+    matchInclination().
 }
 
-runPath("0:/transfer.ks", 100000).
-runPath("0:/utility.ks").
+transferToTarget(100000).
 //circulariseOrbitAtAltitude(300000).
