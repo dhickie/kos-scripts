@@ -104,3 +104,22 @@ function getBodyAtEta {
         return calcOrbit:body.
     }
 }
+
+// Gets the normal vector for the orbit of any orbital
+function calculateOrbitNormal {
+    parameter orbitable.
+
+    local pos is v(0,0,0).
+    if orbitable:name = ship:name {
+        set pos to ship:body:position.
+    } else {
+        // Positions are relative to the ship, so the position of the target
+        // needs to be subtracted from the position of the body the target orbits
+        // to get the position vector from the target to the body
+        set pos to ship:body:position - orbitable:position.
+    }
+
+    local vel is orbitable:velocity:orbit.
+
+    return vCrs(pos, vel).
+}

@@ -9,8 +9,8 @@ function matchInclination {
     global inclinationBurnNodeType is "".
 
     // Calculate the normal vectors of the two orbits
-    local shipNormal is calculateShipOrbitNormal().
-    local targetNormal is calculateTargetOrbitNormal().
+    local shipNormal is calculateOrbitNormal(ship).
+    local targetNormal is calculateOrbitNormal(target).
 
     // Calculate how long until we need to burn to match inclination
     print "Determining closest node".
@@ -68,38 +68,5 @@ function calculateInclinationBurn {
     // Get the burn deltaV by subtracting final from initial velocity
     local deltaV is shipFinalVelocity - shipStartingVelocity.
 
-    return createNodeFromDeltaV(burnEta, deltaV).
-}
-
-function createNodeFromDeltaV {
-    parameter nodeEta, deltaV.
-
-    // Get the prograde, normal & radial vectors for the ship
-    local progradeVector is velocityAt(ship, time:seconds + nodeEta):orbit:normalized.
-    local normalVector is vCrs(ship:body:position, progradeVector):normalized.
-    local radialVector is -ship:body:position:normalized.
-
-    // Use dot products to project deltaV onto each node component
-    local progradeDeltaV is vDot(deltaV, progradeVector).
-    local normalDeltaV is vDot(deltaV, normalVector).
-    local radialDeltaV is vDot(deltaV, radialVector).
-
-    return node(timeSpan(nodeEta), radialDeltaV, normalDeltaV, progradeDeltaV).
-}
-
-function calculateShipOrbitNormal {
-    local shipPosition is ship:body:position.
-    local shipVelocity is ship:velocity:orbit.
-
-    return vCrs(shipPosition, shipVelocity).
-}
-
-function calculateTargetOrbitNormal {
-    // Positions are relative to the ship, so the position of the target
-    // needs to be subtracted from the position of the body the target orbits
-    // to get the position vector from the target to the body
-    local targetPosition is ship:body:position - target:position.
-    local targetVelocity is target:velocity:orbit.
-
-    return vCrs(targetPosition, targetVelocity).
+    return createManeuverFromDeltaV(burnEta, deltaV).
 }

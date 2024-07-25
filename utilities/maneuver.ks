@@ -56,6 +56,22 @@ function warpToManeuver {
     kUniverse:timeWarp:warpTo(time:seconds + mnv:eta - burnDuration - 30).
 }
 
+function createManeuverFromDeltaV {
+    parameter nodeEta, deltaV.
+
+    // Get the prograde, normal & radial vectors for the ship
+    local progradeVector is velocityAt(ship, time:seconds + nodeEta):orbit:normalized.
+    local normalVector is vCrs(ship:body:position, progradeVector):normalized.
+    local radialVector is -ship:body:position:normalized.
+
+    // Use dot products to project deltaV onto each node component
+    local progradeDeltaV is vDot(deltaV, progradeVector).
+    local normalDeltaV is vDot(deltaV, normalVector).
+    local radialDeltaV is vDot(deltaV, radialVector).
+
+    return node(timeSpan(nodeEta), radialDeltaV, normalDeltaV, progradeDeltaV).
+}
+
 function calculateManeuverBurnTime {
     parameter mnvDeltaV, stageNumber is stage:number.
 
