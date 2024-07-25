@@ -1,5 +1,7 @@
 // Dependencies
-runOncePath("0:/utilities/utility.ks").
+runOncePath("0:/utilities/orbit.ks").
+runOncePath("0:/utilities/vector.ks").
+runOncePath("0:/utilities/maneuver.ks").
 
 function matchInclination {
     // Needed later to calculate which direction to burn in to match inclination

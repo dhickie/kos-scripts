@@ -2,6 +2,7 @@
 runOncePath("0:/operations/launch.ks").
 runOncePath("0:/operations/matchInclination.ks").
 runOncePath("0:/operations/transfer.ks").
+runOncePath("0:/operations/orbit.ks").
 
 // Setup staging trigger
 when (stage:deltaV:current < 0.1) then {
@@ -20,4 +21,4 @@ if abs(target:orbit:inclination - ship:orbit:inclination) > 0.2 {
 }
 
 transferToTarget(100000).
-//circulariseOrbitAtAltitude(300000).
+circulariseOrbitAtAltitude(100000).

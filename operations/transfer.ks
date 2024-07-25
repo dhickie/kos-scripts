@@ -2,7 +2,10 @@
 local targetAltitude is 0.
 
 // Dependencies
-runOncePath("0:/utilities/utility.ks").
+runOncePath("0:/utilities/orbit.ks").
+runOncePath("0:/utilities/vector.ks").
+runOncePath("0:/utilities/maneuver.ks").
+runOncePath("0:/operations/orbit.ks").
 
 function transferToTarget {
     parameter tgtAlt.
