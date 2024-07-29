@@ -11,14 +11,16 @@ when (stage:deltaV:current < 0.1) then {
     preserve.
 }
 
-// Set target body
-set target to mun.
+if (ship:status = "prelaunch") {
+    // Set target body
+    set target to mun.
+    
+    launchFromKerbin().
+    
+    if abs(target:orbit:inclination - ship:orbit:inclination) > 0.2 {
+        matchInclination().
+    }
+    
+    transferToTarget(100000).
+}
 
-//launch().
-
-//if abs(target:orbit:inclination - ship:orbit:inclination) > 0.2 {
-//    matchInclination().
-//}
-
-transferToTarget(100000).
-//circulariseOrbitAtAltitude(100000).

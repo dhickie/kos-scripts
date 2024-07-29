@@ -32,7 +32,6 @@ function circulariseOrbit {
 
     // Add the burn to the flight plan
     local burnNode is node(timeSpan(maneuverEta), 0, 0, deltaV).
-    add burnNode.
 
     // Execute the burn
     print "Executing circularisation burn".
@@ -69,6 +68,5 @@ function performApsisBurn {
     local requiredVelocity is calculateOrbitalVelocity(ship:body, altAtBurn, sma).
     local deltaV is requiredVelocity - velocityAt(ship, time:seconds + burnEta):orbit:mag.
     local burnNode is node(timeSpan(burnEta), 0, 0, deltaV).
-    add burnNode.
     executeManeuver(burnNode).
 }

@@ -2,16 +2,24 @@
 runOncePath("0:/utilities/orbit.ks").
 runOncePath("0:/operations/orbit.ks").
 
-function launch {
-    doLaunch().
+function launchFromKerbin {
+    rcs on.
+
+    doKerbinLaunch().
     circulariseOrbit(eta:apoapsis).
     
     rcs off.
 }
 
-function doLaunch {
+function launchFromVacuum {
+    parameter targetAltitude.
+
+    doVacuumLaunch(targetAltitude).
+    circulariseOrbit(eta:apoapsis).
+}
+
+function doKerbinLaunch {
     // Initial setup
-    rcs on.
     lock throttle to 1.
     lock steering to heading(90, 90).
 
@@ -32,6 +40,19 @@ function doLaunch {
 
     // Wait until we get out of atmo before continuing
     wait until alt:radar > 70000.
+}
+
+function doVacuumLaunch {
+    parameter targetAltitude.
+
+    lock throttle to 1.
+    wait 1.
+    lock steering to heading (90, 135).
+    legs off.
+
+    wait until ship:apoapsis >= targetAltitude.
+
+    lock throttle to 0.
 }
 
 function calculateGravityTurn {

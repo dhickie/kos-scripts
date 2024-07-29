@@ -36,7 +36,6 @@ function transferToTarget {
     local refinedNode is hillClimb(initialNode, orbitScoringFunction@, orbitVelocityLimitFunction@, 2).
 
     // Execute the transfer burn
-    add refinedNode.
     executeManeuver(refinedNode).
 
     // Circularise the orbit around the target

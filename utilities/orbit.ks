@@ -123,3 +123,8 @@ function calculateOrbitNormal {
 
     return vCrs(pos, vel).
 }
+
+// Calculates the current gravitational force being exherted on the ship
+function calculateGravitationalForce {
+    return ship:body:mu / ship:body:position:mag^2.
+}

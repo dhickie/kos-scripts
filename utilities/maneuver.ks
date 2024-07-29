@@ -1,6 +1,8 @@
 function executeManeuver {
     parameter mnv.
 
+    add mnv.
+
     // Point at the burn vector
     local originalBurnVector is mnv:burnVector.
     lock steering to mnv:burnVector.
@@ -12,9 +14,11 @@ function executeManeuver {
     // Wait until the ship is pointing at the burn vector
     wait until vAng(ship:facing:foreVector, mnv:burnVector) < 1.
 
-    // Warp to the maneuver
-    print "Warping to maneuver".
-    warpToManeuver(mnv, burnDuration).
+    // Warp to the maneuver, if required
+    if (mnv:eta + (burnDuration/2) > 60) {
+        print "Warping to maneuver".
+        warpToManeuver(mnv, burnDuration).
+    }
 
     // Wait until the burn should begin
     local waitTime is mnv:eta - (burnDuration / 2).

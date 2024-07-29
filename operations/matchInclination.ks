@@ -19,7 +19,6 @@ function matchInclination {
     // Calculate the burn required to match the target inclination
     print "Calculating inclination burn".
     local burnNode is calculateInclinationBurn(burnEta).
-    add burnNode.
 
     print "Executing inclination burn".
     executeManeuver(burnNode).  

@@ -6,11 +6,13 @@ runOncePath("0:/utilities/ship.ks").
 function land {
     killLateralVelocity().
 
-    lock steering to retrograde.
+    // Lock the steering to surface retrograde but with roll locked
+    local roll is ship:facing:roll.
+    lock steering to r(srfRetrograde:pitch, srfRetrograde:yaw, roll).
     
     waitUntilSuicideBurn().
     
-    // Extend legs
+    legs on.
 
     performSuicideBurn().
 }
@@ -23,7 +25,7 @@ function killLateralVelocity {
     local lateralVector is vCrs(orbitNormal, ship:body:position):normalized.
 
     // Calculate the amount of lateral velocity we're currently holding
-    local lateralVelocity is vDot(ship:velocity:surface, lateralVector).
+    local lateralVelocity is vDot(ship:velocity:surface, lateralVector) * lateralVector.
 
     // Create and execute a maneuver with the opposite deltaV
     local mnv is createManeuverFromDeltaV(5, -lateralVelocity).
@@ -31,39 +33,50 @@ function killLateralVelocity {
 }
 
 function waitUntilSuicideBurn {
-    // Lock a variable to show how long it would currently take
-    // to stop the ship
-    lock timeToStop to (ship:velocity:surface:mag * shipPossibleThrust()) / ship:mass.
+    // Lock a variable to show how far down the ship would travel if we applied
+    // max thrust now
+    lock maxDownwardDistance to calculateMaxDownwardTravel().
 
-    // Lock a variable to show how long we have until we hit the surface
-    lock timeToSurface to calculateTimeToSurface().
-
-    // Wait until we hit the last point we can burn
-    wait until timeToStop <= timeToSurface.
+    // Wait until we hit the last point we can burn, with a buffer 
+    // to accommodate the rate of physics ticks
+    wait until maxDownwardDistance >= (alt:radar - (ship:velocity:surface:mag * 0.88)).
 }
 
 function performSuicideBurn {
     lock throttle to 1.
 
-    wait until alt:radar < 0.5.
+    wait until alt:radar < 6 or ship:verticalspeed >= -3.
 
-    lock throttle to 0.
+    // If we're at the surface, kill the throttle
+    // If we're not yet at the surface but velocity is low, then keep throttle
+    // at a level that keeps velocity constant
+    if (alt:radar < 6) {
+        lock throttle to 0.
+    } else {
+        lock throttle to calculateHoverThrottle().
+        wait until alt:radar < 6.
+        lock throttle to 0.
+    }
 }
 
-// Calculates how long it would take to hit the ground below under
-// the current acceleration from gravity, using the SUVAT equations
-// and the quadratic equation
-function calculateTimeToSurface {
-    local g is ship:body:mu / ship:body:position:mag^2.
-    local u is ship:velocity:surface.
-    local s is alt:radar.
+// Calculates how far below the ship's current point the ship would travel if
+// it applied max thrust right now
+function calculateMaxDownwardTravel {
+    // How long would it take to cancel out our current velocity?
+    local t is calculateManeuverBurnTime(ship:velocity:surface:mag).
 
-    local t1 is (-u + sqrt(u^2 - 2*g*s)) / g.
-    local t2 is (-u - sqrt(u^2 - 2*g*s)) / g.
+    // How far would the ship travel in that time?
+    local F is (shipPossibleThrust() * 1000) - calculateGravitationalForce().
+    local a is F / (ship:mass * 1000).
+    local u is ship:velocity:surface:mag.
 
-    if t1 > t2 {
-        return t1.
-    } else {
-        return t2.
-    }
+    return (u * t) - ((a * t^2)/2).
+}
+
+// Calculates the throttle requires to keep the current downward velocity constant
+function calculateHoverThrottle {
+    local g is calculateGravitationalForce().
+    local requiredForce is ship:mass * g.
+
+    return requiredForce / shipPossibleThrust().
 }
