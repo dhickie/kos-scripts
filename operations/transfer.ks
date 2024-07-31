@@ -11,6 +11,7 @@ function transferToTarget {
     parameter tgtAlt.
     set targetAltitude to tgtAlt.
 
+    print "Calculating initial node".
     // Calculate orbital period of transfer orbit
     local transferOrbit is calculateTransferOrbit().
     local transferDuration is transferOrbit:period  / 2.
@@ -33,6 +34,7 @@ function transferToTarget {
 
     // Refine the node with hill cimbing to reach desired final altitude
     local initialNode is node(timeSpan(nodeEta), 0, 0, deltaV).
+    print "hillclimbing".
     local refinedNode is hillClimb(initialNode, orbitScoringFunction@, orbitVelocityLimitFunction@, 2).
 
     // Execute the transfer burn
@@ -112,24 +114,37 @@ function orbitScoringFunction {
 
     add nodeToScore.
 
-    // Ideally, the ship should have the periapsis of it's orbit with the target body at the target altitude
-    // directly "behind" the body as it orbits (opposite it's velocity vector), to make the most advantage of a gravity assist
-    // and result in an anti-clockwise orbit.
+    // The ship should have an anticlockwise orbit around the target to make the most advantage of a gravity assist
+    // and keep with convention
+    // If the velocity at the scoring point is not in the direction of an anticlockwise orbit, then massively
+    // inflate the score according to how far off it is from the ideal velocity for a circular orbit at the target
+    // altitude
 
     // If the resulting orbit doesn't contain an encounter with the target body
     // then calculate the distance between the ship and the target point at the apoapsis
-    local etaAtScoringPoint is 0.
+    local scoringTimestamp is 0.
     if not nodeToScore:orbit:hasNextPatch {
-        set etaAtScoringPoint to nodeToScore:orbit:eta:apoapsis.
+        set scoringTimestamp to time:seconds + nodeToScore:orbit:eta:apoapsis.
     } else {
-        set etaAtScoringPoint to nodeToScore:orbit:nextPatch:eta:periapsis.
+        set scoringTimestamp to time:seconds + nodeToScore:orbit:nextPatch:eta:periapsis.
     }
 
-    local bodyVelocity is velocityAt(target, time:seconds + etaAtScoringPoint):orbit.
-    local bodyPosition is positionAt(target, time:seconds + etaAtScoringPoint).
-    local targetPeriapsis is bodyVelocity:normalized * (targetAltitude + target:radius) * -1.
-    local shipPosition is positionAt(ship, time:seconds + etaAtScoringPoint) - bodyPosition.
-    local score is (targetPeriapsis - shipPosition):mag.
+    local bodyNormal is calculateOrbitNormal(target).
+    local shipVelocity is velocityAt(ship, scoringTimestamp):orbit - velocityAt(target, scoringTimestamp):orbit.
+    local bodyPosition is positionAt(target, scoringTimestamp) - positionAt(ship, scoringTimestamp).
+    local shipNormal is vCrs(bodyPosition, shipVelocity).
+
+    // Calculate the orbit direction component of the score
+    local score is 0.
+    if (vAng(bodyNormal, shipNormal) > 90) {
+        local orbitRadius is target:radius + targetAltitude.
+        local idealVelocity is calculateOrbitalVelocity(target, orbitRadius, orbitRadius).
+        set score to score + ((idealVelocity + shipVelocity:mag) * 1000000).
+    }
+
+    // Calculate the altitude component of the score
+    local altComponent is abs(bodyPosition:mag - target:radius - targetAltitude).
+    set score to score + altComponent.
 
     remove nodeToScore.
     return score.

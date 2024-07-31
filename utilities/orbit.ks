@@ -128,3 +128,20 @@ function calculateOrbitNormal {
 function calculateGravitationalForce {
     return ship:body:mu / ship:body:position:mag^2.
 }
+
+// Calculates the lateral velocity of the ship parallel to the SOI body
+// at the provided time
+function calculateLateralSurfaceVelocity {
+    parameter t. // The univeral time at which to calculate the velocity
+
+    // Calculate the orbit normal
+    local orbitNormal is calculateOrbitNormal(ship).
+
+    // Calculate the lateral vector in the direction of the ship's velocity
+    local bodyPosition is ship:body:position - positionAt(ship, t).
+    local lateralVector is vCrs(orbitNormal, bodyPosition):normalized.
+
+    // Calculate the amount of lateral velocity we're currently holding
+    local surfaceVelocity is velocityAt(ship, t):surface.
+    return vDot(surfaceVelocity, lateralVector) * lateralVector.
+}

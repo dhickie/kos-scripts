@@ -47,7 +47,7 @@ function doVacuumLaunch {
 
     lock throttle to 1.
     wait 1.
-    lock steering to heading (90, 135).
+    lock steering to heading (270, 135).
     legs off.
 
     wait until ship:apoapsis >= targetAltitude.

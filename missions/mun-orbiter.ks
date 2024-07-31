@@ -15,12 +15,18 @@ if (ship:status = "prelaunch") {
     // Set target body
     set target to mun.
     
+    // Launch the ship
     launchFromKerbin().
     
+    // Match inclination to the target if we're sufficiently off to warrant it
     if abs(target:orbit:inclination - ship:orbit:inclination) > 0.2 {
-        matchInclination().
+        matchInclinationToTarget().
     }
     
+    // Transfer to the target
     transferToTarget(100000).
+
+    // Set the inclination around the equator to 0
+    matchInclinationToEquator().
 }
 

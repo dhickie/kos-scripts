@@ -4,7 +4,9 @@ runOncePath("0:/utilities/maneuver.ks").
 runOncePath("0:/utilities/ship.ks").
 
 function land {
-    killLateralVelocity().
+    parameter lngHours, lngMinutes, lngSeconds. // Longitude of target landing site
+
+    killLateralVelocityAboveLandingSite(lngHours, lngMinutes, lngSeconds).
 
     // Lock the steering to surface retrograde but with roll locked
     local roll is ship:facing:roll.
@@ -17,18 +19,24 @@ function land {
     performSuicideBurn().
 }
 
-function killLateralVelocity {
-    // Calculate the orbit normal
-    local orbitNormal is calculateOrbitNormal(ship).
+function killLateralVelocityAboveLandingSite {
+    parameter lngHours, lngMinutes, lngSeconds. // Longitude of target landing site
 
-    // Calculate the lateral vector in the direction of the ship's velocity
-    local lateralVector is vCrs(orbitNormal, ship:body:position):normalized.
+    local lngDec is lngHours + (lngMinutes / 60) + (lngSeconds / 3600).
+    local landingSite is latLng(0, lngDec).
 
-    // Calculate the amount of lateral velocity we're currently holding
-    local lateralVelocity is vDot(ship:velocity:surface, lateralVector) * lateralVector.
+    // Calculate when the ship will pass over the target landing site
+    local landingSiteVector is landingSite:position - ship:body:position.
+    local shipNormal is calculateOrbitNormal(ship).
+    local flyoverEta is calculateEtaFromVector(landingSiteVector, shipNormal, ship).
+
+    // Calculate how long it will take to kill the lateral velocity above the landing site
+    local lateralVelocity is calculateLateralSurfaceVelocity(time:seconds + flyoverEta).
+    local burnTime is calculateManeuverBurnTime(lateralVelocity:mag).
+    local burnEta is flyoverEta - burnTime.
 
     // Create and execute a maneuver with the opposite deltaV
-    local mnv is createManeuverFromDeltaV(5, -lateralVelocity).
+    local mnv is createManeuverFromDeltaV(burnEta, -lateralVelocity).
     executeManeuver(mnv).
 }
 
@@ -38,7 +46,7 @@ function waitUntilSuicideBurn {
     lock maxDownwardDistance to calculateMaxDownwardTravel().
 
     // Wait until we hit the last point we can burn, with a buffer 
-    // to accommodate the rate of physics ticks
+    // to accommodate the rate of physics ticks and increase in g as we approach
     wait until maxDownwardDistance >= (alt:radar - (ship:velocity:surface:mag * 0.88)).
 }
 
