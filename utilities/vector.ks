@@ -21,3 +21,19 @@ function rotateVectorAboutAxis {
 
     return v(xOut, yOut, zOut).
 }
+
+function drawVector {
+    parameter vector, label.
+
+    vecDraw(
+        v(0,0,0),
+        vector,
+        rgb(1,0,0),
+        label,
+        1.0,
+        true,
+        0.2,
+        true,
+        true
+    ).
+}

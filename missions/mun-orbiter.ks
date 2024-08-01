@@ -29,4 +29,3 @@ if (ship:status = "prelaunch") {
     // Set the inclination around the equator to 0
     matchInclinationToEquator().
 }
-

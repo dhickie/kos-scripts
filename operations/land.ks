@@ -17,6 +17,8 @@ function land {
     legs on.
 
     performSuicideBurn().
+
+    unlock steering.
 }
 
 function killLateralVelocityAboveLandingSite {
@@ -32,11 +34,13 @@ function killLateralVelocityAboveLandingSite {
 
     // Calculate how long it will take to kill the lateral velocity above the landing site
     local lateralVelocity is calculateLateralSurfaceVelocity(time:seconds + flyoverEta).
-    local burnTime is calculateManeuverBurnTime(lateralVelocity:mag).
-    local burnEta is flyoverEta - burnTime.
+    //local burnTime is calculateManeuverBurnTime(lateralVelocity:mag).
+    // executeManeuver will start half the burn time before the node, so adjust the burn eta so the burn
+    // finishes as we reach the point we'd like to land at
+    //local burnEta is flyoverEta - (burnTime * 0.5).
 
     // Create and execute a maneuver with the opposite deltaV
-    local mnv is createManeuverFromDeltaV(burnEta, -lateralVelocity).
+    local mnv is createManeuverFromDeltaV(flyoverEta, -lateralVelocity).
     executeManeuver(mnv).
 }
 
@@ -47,22 +51,24 @@ function waitUntilSuicideBurn {
 
     // Wait until we hit the last point we can burn, with a buffer 
     // to accommodate the rate of physics ticks and increase in g as we approach
-    wait until maxDownwardDistance >= (alt:radar - (ship:velocity:surface:mag * 0.88)).
+    wait until maxDownwardDistance >= (alt:radar - (ship:velocity:surface:mag * 0.92)).
 }
 
 function performSuicideBurn {
     lock throttle to 1.
 
-    wait until alt:radar < 6 or ship:verticalspeed >= -3.
+    local comHeight is 4.6.
+
+    wait until alt:radar < comHeight or ship:verticalspeed >= -3.
 
     // If we're at the surface, kill the throttle
     // If we're not yet at the surface but velocity is low, then keep throttle
     // at a level that keeps velocity constant
-    if (alt:radar < 6) {
+    if (alt:radar < comHeight) {
         lock throttle to 0.
     } else {
         lock throttle to calculateHoverThrottle().
-        wait until alt:radar < 6.
+        wait until alt:radar < comHeight.
         lock throttle to 0.
     }
 }

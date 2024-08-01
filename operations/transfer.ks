@@ -34,7 +34,6 @@ function transferToTarget {
 
     // Refine the node with hill cimbing to reach desired final altitude
     local initialNode is node(timeSpan(nodeEta), 0, 0, deltaV).
-    print "hillclimbing".
     local refinedNode is hillClimb(initialNode, orbitScoringFunction@, orbitVelocityLimitFunction@, 2).
 
     // Execute the transfer burn

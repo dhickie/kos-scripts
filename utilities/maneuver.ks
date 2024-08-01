@@ -64,9 +64,12 @@ function createManeuverFromDeltaV {
     parameter nodeEta, deltaV.
 
     // Get the prograde, normal & radial vectors for the ship
+    local shipPosition is positionAt(ship, time:seconds + nodeEta).
+    local bodyPosition is ship:body:position - shipPosition.
+
     local progradeVector is velocityAt(ship, time:seconds + nodeEta):orbit:normalized.
-    local normalVector is vCrs(ship:body:position, progradeVector):normalized.
-    local radialVector is -ship:body:position:normalized.
+    local normalVector is vCrs(bodyPosition, progradeVector):normalized.
+    local radialVector is -bodyPosition:normalized.
 
     // Use dot products to project deltaV onto each node component
     local progradeDeltaV is vDot(deltaV, progradeVector).
