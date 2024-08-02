@@ -1,3 +1,5 @@
+runOncePath("0:/utilities/vector.ks").
+
 // Calculates the ETA until the provided orbitable arrives at the point along its orbit
 // that is pointed to by nodeVector
 function calculateEtaFromVector {
@@ -51,7 +53,7 @@ function calculateTrueAnomaly {
     // Calculate whether the node is currently on its way to the apopasis or the periapsis
     // If the former, then nodeVector x periapsisVector should point in the same direction as
     // the orbit normal
-    if vCrs(nodeVector, periapsisVector):z > 0 and orbitNormal:z > 0 {
+    if vCrs(nodeVector, periapsisVector):y > 0 and orbitNormal:y > 0 {
         return trueAnomaly.
     } else {
         return 360 - trueAnomaly.

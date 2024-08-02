@@ -17,6 +17,9 @@ if (ship:status = "prelaunch") {
     
     // Launch the ship
     launchFromKerbin().
+
+    // Open the solar panels
+    toggle ag4.
     
     // Match inclination to the target if we're sufficiently off to warrant it
     if abs(target:orbit:inclination - ship:orbit:inclination) > 0.2 {

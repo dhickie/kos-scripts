@@ -14,6 +14,7 @@ function launchFromKerbin {
 function launchFromVacuum {
     parameter targetAltitude.
 
+    set ag3 to false. // Raise ladder
     doVacuumLaunch(targetAltitude).
     circulariseOrbit(eta:apoapsis).
 }
@@ -49,6 +50,7 @@ function doVacuumLaunch {
     wait 1.
     lock steering to heading (270, 135).
     legs off.
+    lights off.
 
     wait until ship:apoapsis >= targetAltitude.
 

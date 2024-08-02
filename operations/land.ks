@@ -2,6 +2,7 @@
 runOncePath("0:/utilities/orbit.ks").
 runOncePath("0:/utilities/maneuver.ks").
 runOncePath("0:/utilities/ship.ks").
+runOncePath("0:/utilities/vector.ks").
 
 function land {
     parameter lngHours, lngMinutes, lngSeconds. // Longitude of target landing site
@@ -15,10 +16,14 @@ function land {
     waitUntilSuicideBurn().
     
     legs on.
+    lights on.
 
     performSuicideBurn().
 
     unlock steering.
+
+    // Lower the ladder
+    set ag3 to true.
 }
 
 function killLateralVelocityAboveLandingSite {
@@ -55,11 +60,12 @@ function waitUntilSuicideBurn {
 }
 
 function performSuicideBurn {
-    lock throttle to 1.
+    local velocityRampDown is 20.
+    lock throttle to max(abs(ship:verticalSpeed) / velocityRampDown, 0.1).
 
-    local comHeight is 4.6.
+    local comHeight is 5.5.
 
-    wait until alt:radar < comHeight or ship:verticalspeed >= -3.
+    wait until alt:radar < comHeight or ship:verticalspeed >= -5.
 
     // If we're at the surface, kill the throttle
     // If we're not yet at the surface but velocity is low, then keep throttle

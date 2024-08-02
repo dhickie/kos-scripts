@@ -28,13 +28,18 @@ function transferToTarget {
     // Calculate the ship's ETA at that point
     local nodeEta is calculateEtaFromVector(nodeVector, orbitNormal, ship).
 
+    // If the node is too soon, do it on the next orbit
+    if (nodeEta < 120) { 
+        set nodeEta to nodeEta + ship:orbit:period.
+    }
+
     // Calculate the required increase in velocity to reach projected apoapsis
     local requiredVelocity is calculateOrbitalVelocity(ship:body, ship:orbit:semimajoraxis, transferOrbit:semimajoraxis).
     local deltaV is requiredVelocity - ship:velocity:orbit:mag.
 
     // Refine the node with hill cimbing to reach desired final altitude
     local initialNode is node(timeSpan(nodeEta), 0, 0, deltaV).
-    local refinedNode is hillClimb(initialNode, orbitScoringFunction@, orbitVelocityLimitFunction@, 2).
+    local refinedNode is refineTransferNode(initialNode).
 
     // Execute the transfer burn
     executeManeuver(refinedNode).
@@ -63,6 +68,24 @@ function calculateTargetMovementDuringTransfer {
     parameter transferDuration.
 
     return (transferDuration / target:orbit:period) * 360.
+}
+
+// Refine the initial node with a combination of hill climbing and bidirectional searching
+// to ensure the orbit is in the right direction
+function refineTransferNode {
+    parameter initialNode.
+
+    local refinedNode is hillClimb(initialNode, orbitScoringFunction@, orbitVelocityLimitFunction@, 2).
+    add refinedNode.
+    local timeOfClosestApproach is time:seconds + refinedNode:orbit:nextPatch:eta:periapsis.
+    if (isOrbitAntiClockwise(timeOfClosestApproach)) {
+        remove refinedNode.
+        return refinedNode.
+    } else {
+        remove refinedNode.
+        set refinedNode to biDirectionalSearch(refinedNode, conditionCheckFunction@).
+        return refineTransferNode(refinedNode).
+    }
 }
 
 function hillClimb {
@@ -108,16 +131,36 @@ function hillClimb {
     return nodeToBeat.
 }
 
+// Moves the burn node in both directions in time until a condition is true
+function biDirectionalSearch {
+    parameter initialNode, conditionFunction.
+
+    local conditionTrue is false.
+    local result is initialNode.
+    local modFactor is 1.
+    until conditionTrue {
+        local candidates is list(
+                node(timeSpan(initialNode:eta - modFactor), initialNode:radialOut, initialNode:normal, initialNode:prograde),
+                node(timeSpan(initialNode:eta + modFactor), initialNode:radialOut, initialNode:normal, initialNode:prograde)
+        ).
+
+        for candidate in candidates {
+            if (conditionFunction(candidate)) {
+                set result to candidate.
+                set conditionTrue to true.
+            } else {
+                set modFactor to modFactor + 1.
+            }
+        }
+    }
+
+    return result.
+}
+
 function orbitScoringFunction {
     parameter nodeToScore.
 
     add nodeToScore.
-
-    // The ship should have an anticlockwise orbit around the target to make the most advantage of a gravity assist
-    // and keep with convention
-    // If the velocity at the scoring point is not in the direction of an anticlockwise orbit, then massively
-    // inflate the score according to how far off it is from the ideal velocity for a circular orbit at the target
-    // altitude
 
     // If the resulting orbit doesn't contain an encounter with the target body
     // then calculate the distance between the ship and the target point at the apoapsis
@@ -128,22 +171,10 @@ function orbitScoringFunction {
         set scoringTimestamp to time:seconds + nodeToScore:orbit:nextPatch:eta:periapsis.
     }
 
-    local bodyNormal is calculateOrbitNormal(target).
-    local shipVelocity is velocityAt(ship, scoringTimestamp):orbit - velocityAt(target, scoringTimestamp):orbit.
     local bodyPosition is positionAt(target, scoringTimestamp) - positionAt(ship, scoringTimestamp).
-    local shipNormal is vCrs(bodyPosition, shipVelocity).
-
-    // Calculate the orbit direction component of the score
-    local score is 0.
-    if (vAng(bodyNormal, shipNormal) > 90) {
-        local orbitRadius is target:radius + targetAltitude.
-        local idealVelocity is calculateOrbitalVelocity(target, orbitRadius, orbitRadius).
-        set score to score + ((idealVelocity + shipVelocity:mag) * 1000000).
-    }
 
     // Calculate the altitude component of the score
-    local altComponent is abs(bodyPosition:mag - target:radius - targetAltitude).
-    set score to score + altComponent.
+    local score is abs(bodyPosition:mag - target:radius - targetAltitude).
 
     remove nodeToScore.
     return score.
@@ -162,5 +193,31 @@ function orbitVelocityLimitFunction {
         return orbitVelocity.
     } else {
         return vIn.
+    }
+}
+
+function conditionCheckFunction {
+    parameter nodeToCheck.
+
+    add nodeToCheck.
+    local timeOfClosestApproach is time:seconds + nodeToCheck:orbit:nextPatch:eta:periapsis.
+    local result is isOrbitAntiClockwise(timeOfClosestApproach).
+    remove nodeToCheck.
+
+    return result.
+}
+
+function isOrbitAntiClockwise {
+    parameter timeToCheck.
+
+    local bodyNormal is calculateOrbitNormal(target).
+    local shipVelocity is velocityAt(ship, timeToCheck):orbit - velocityAt(target, timeToCheck):orbit.
+    local bodyPosition is positionAt(target, timeToCheck) - positionAt(ship, timeToCheck).
+    local shipNormal is vCrs(bodyPosition, shipVelocity).
+
+    if (vAng(bodyNormal, shipNormal) > 90) {
+        return true.
+    } else {
+        return false.
     }
 }

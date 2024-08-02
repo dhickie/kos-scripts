@@ -7,7 +7,7 @@ until false {
     wait until ag1 or ag2.
 
     if ag1 {
-        land(-150, 0, 0).
+        land(20, 0, 0).
         toggle ag1.
     } else if ag2 {
         launchFromVacuum(50000).

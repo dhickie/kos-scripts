@@ -23,10 +23,10 @@ function rotateVectorAboutAxis {
 }
 
 function drawVector {
-    parameter vector, label.
+    parameter vector, label, originOrbitable is ship.
 
     vecDraw(
-        v(0,0,0),
+        originOrbitable:position,
         vector,
         rgb(1,0,0),
         label,
