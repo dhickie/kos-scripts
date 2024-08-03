@@ -35,7 +35,7 @@ function killLateralVelocityAboveLandingSite {
     // Calculate when the ship will pass over the target landing site
     local landingSiteVector is landingSite:position - ship:body:position.
     local shipNormal is calculateOrbitNormal(ship).
-    local flyoverEta is calculateEtaFromVector(landingSiteVector, shipNormal, ship).
+    local flyoverEta is calculateEtaAbovePoint(landingSiteVector, shipNormal, ship).
 
     // Calculate how long it will take to kill the lateral velocity above the landing site
     local lateralVelocity is calculateLateralSurfaceVelocity(time:seconds + flyoverEta).
@@ -56,7 +56,7 @@ function waitUntilSuicideBurn {
 
     // Wait until we hit the last point we can burn, with a buffer 
     // to accommodate the rate of physics ticks and increase in g as we approach
-    wait until maxDownwardDistance >= (alt:radar - (ship:velocity:surface:mag * 0.92)).
+    wait until maxDownwardDistance >= (alt:radar - (ship:velocity:surface:mag * 1)).
 }
 
 function performSuicideBurn {

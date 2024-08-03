@@ -76,14 +76,10 @@ function refineTransferNode {
     parameter initialNode.
 
     local refinedNode is hillClimb(initialNode, orbitScoringFunction@, orbitVelocityLimitFunction@, 2).
-    add refinedNode.
-    local timeOfClosestApproach is time:seconds + refinedNode:orbit:nextPatch:eta:periapsis.
-    if (isOrbitAntiClockwise(timeOfClosestApproach)) {
-        remove refinedNode.
+    if (hasAntiClockwiseOrbit(refinedNode)) {
         return refinedNode.
     } else {
-        remove refinedNode.
-        set refinedNode to biDirectionalSearch(refinedNode, conditionCheckFunction@).
+        set refinedNode to biDirectionalSearch(refinedNode, hasAntiClockwiseOrbit@).
         return refineTransferNode(refinedNode).
     }
 }
@@ -137,8 +133,9 @@ function biDirectionalSearch {
 
     local conditionTrue is false.
     local result is initialNode.
-    local modFactor is 1.
+    local modFactor is 0.
     until conditionTrue {
+        set modFactor to modFactor + 1.
         local candidates is list(
                 node(timeSpan(initialNode:eta - modFactor), initialNode:radialOut, initialNode:normal, initialNode:prograde),
                 node(timeSpan(initialNode:eta + modFactor), initialNode:radialOut, initialNode:normal, initialNode:prograde)
@@ -148,8 +145,6 @@ function biDirectionalSearch {
             if (conditionFunction(candidate)) {
                 set result to candidate.
                 set conditionTrue to true.
-            } else {
-                set modFactor to modFactor + 1.
             }
         }
     }
@@ -196,28 +191,26 @@ function orbitVelocityLimitFunction {
     }
 }
 
-function conditionCheckFunction {
+// Checks whether the orbit around the target that results from the provided node
+// has an anti clockwise orbit around the target
+function hasAntiClockwiseOrbit {
     parameter nodeToCheck.
 
     add nodeToCheck.
-    local timeOfClosestApproach is time:seconds + nodeToCheck:orbit:nextPatch:eta:periapsis.
-    local result is isOrbitAntiClockwise(timeOfClosestApproach).
-    remove nodeToCheck.
+    local result is false.
+    if nodeToCheck:orbit:hasNextPatch {
+        local timeToCheck is time:seconds + nodeToCheck:orbit:nextPatch:eta:periapsis.
 
-    return result.
-}
+        local bodyNormal is calculateOrbitNormal(target).
+        local shipVelocity is velocityAt(ship, timeToCheck):orbit - velocityAt(target, timeToCheck):orbit.
+        local bodyPosition is positionAt(target, timeToCheck) - positionAt(ship, timeToCheck).
+        local shipNormal is vCrs(bodyPosition, shipVelocity).
 
-function isOrbitAntiClockwise {
-    parameter timeToCheck.
-
-    local bodyNormal is calculateOrbitNormal(target).
-    local shipVelocity is velocityAt(ship, timeToCheck):orbit - velocityAt(target, timeToCheck):orbit.
-    local bodyPosition is positionAt(target, timeToCheck) - positionAt(ship, timeToCheck).
-    local shipNormal is vCrs(bodyPosition, shipVelocity).
-
-    if (vAng(bodyNormal, shipNormal) > 90) {
-        return true.
-    } else {
-        return false.
+        if (vAng(bodyNormal, shipNormal) < 90) {
+            set result to true.
+        }
     }
+
+    remove nodeToCheck.
+    return result.
 }

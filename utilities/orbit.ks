@@ -5,11 +5,24 @@ runOncePath("0:/utilities/vector.ks").
 function calculateEtaFromVector {
     parameter nodeVector, orbitNormal, orbitable.
 
-    // Calculate the mean anomaly of the node on the current orbit
+    // Calculate the true anomaly of the node on the current orbit
     local periapsisVector is calculatePeriapsisVector(orbitable).
     local nodeTrueAnomaly is calculateTrueAnomaly(nodeVector, periapsisVector, orbitNormal).
 
     return calculateEtaFromTrueAnomaly(nodeTrueAnomaly, orbitable).
+}
+
+// Calculates the ETA until the provided orbitable arrives at the point along its orbit
+// directly above the point on the surface that is CURRENTLY pointed to by nodeVector, accomodating the
+// rotation of the body
+function calculateEtaAbovePoint {
+    parameter nodeVector, orbitNormal, orbitable.
+
+    // Calculate the true anomaly of the node on the current orbit
+    local periapsisVector is calculatePeriapsisVector(orbitable).
+    local nodeTrueAnomaly is calculateTrueAnomaly(nodeVector, periapsisVector, orbitNormal).
+
+    return calculateEtaFromTrueAnomalyWithBodyRotation(nodeTrueAnomaly, orbitable).
 }
 
 // Calculates the ETA until the provided orbitable arrives at the point along its orbit
@@ -32,6 +45,29 @@ function calculateEtaFromTrueAnomaly {
     // Calculate how long it would take for the ship's mean anomaly to change by this amount
     // given the orbital period
     return (anomDiff / 360) * orbitable:orbit:period.
+}
+
+// Calculates the ETA until the provided orbitable arrives at the point along its orbit
+// defined by the provided true anomaly, acommodating the rotation of the body below
+function calculateEtaFromTrueAnomalyWithBodyRotation {
+    parameter trueAnomaly, orbitable.
+
+    // Calculate the mean anomaly of the node on the current orbit
+    local nodeMeanAnomaly is calculateMeanAnomalyFromTrueAnomaly(trueAnomaly).
+
+    // Calculate the difference between the orbitable's current mean anomaly and the node's mean anomaly
+    local anomDiff is 0.
+    local orbitableMeanAnomaly is calculateMeanAnomalyFromTrueAnomaly(orbitable:orbit:trueAnomaly).
+    if nodeMeanAnomaly > orbitableMeanAnomaly {
+        set anomDiff to nodeMeanAnomaly - orbitableMeanAnomaly.
+    } else {
+        set anomDiff to 360 - orbitableMeanAnomaly + nodeMeanAnomaly.
+    }
+    
+    // Calculate how long it would take for the ship's mean anomaly to change by this amount
+    // given the orbital period and rotation of the planet below
+    local bodyRotation is (orbitable:orbit:period / orbitable:body:rotationPeriod) * 360.
+    return (anomDiff / (360 - bodyRotation)) * orbitable:orbit:period.
 }
 
 // Calculates the vector from the SOI body to the periapsis of an orbitable
