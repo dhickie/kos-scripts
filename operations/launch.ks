@@ -5,7 +5,7 @@ runOncePath("0:/operations/orbit.ks").
 function launchFromKerbin {
     rcs on.
 
-    doKerbinLaunch().
+    //doKerbinLaunch().
     circulariseOrbit(eta:apoapsis).
     
     rcs off.
@@ -28,6 +28,15 @@ function doKerbinLaunch {
 
     // Launch
     stage.
+
+    // Setup staging trigger
+    local maxAvailableThrust is ship:availableThrustAt(0).
+    when (ship:availableThrustAt(0) < maxAvailableThrust) then {
+        wait until stage:ready.
+        stage.
+        set maxAvailableThrust to ship:availableThrustAt(0).
+        preserve.
+    }
 
     // Wait until start of gravity turn, and begin
     wait until alt:radar > 10000.

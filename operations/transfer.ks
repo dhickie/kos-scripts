@@ -12,8 +12,28 @@ function transferToTarget {
     set targetAltitude to tgtAlt.
 
     print "Calculating initial node".
+    local transferBurn is calculateTransferBurn().
+
+    // Execute the transfer burn
+    executeManeuver(transferBurn).
+
+    // If this is a long transfer (> 1 day), then get half way and do a correction burn
+    local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
+    if timeToPeriapsis > 86400 {
+        local correctionBurn is calculateCorrectionBurn().
+
+        // Execute the correction burn
+        executeManeuver(correctionBurn).
+    }
+
+    // Circularise the orbit around the target
+    local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
+    circulariseOrbit(timeToPeriapsis).
+}
+
+function calculateTransferBurn {
     // Calculate orbital period of transfer orbit
-    local transferOrbit is calculateTransferOrbit().
+    local transferOrbit is calculateInitialTransferOrbit().
     local transferDuration is transferOrbit:period  / 2.
 
     // Calculate how far target moves in this time
@@ -39,17 +59,17 @@ function transferToTarget {
 
     // Refine the node with hill cimbing to reach desired final altitude
     local initialNode is node(timeSpan(nodeEta), 0, 0, deltaV).
-    local refinedNode is refineTransferNode(initialNode).
-
-    // Execute the transfer burn
-    executeManeuver(refinedNode).
-
-    // Circularise the orbit around the target
-    local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
-    circulariseOrbit(timeToPeriapsis).
+    return refineTransferNode(initialNode).
 }
 
-function calculateTransferOrbit {
+function calculateCorrectionBurn {
+    local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
+    local correctionEta is timeToPeriapsis / 2.
+    local initialNode is node(timeSpan(correctionEta), 0, 0, 0).
+    return refineCorrectionNode(initialNode).
+}
+
+function calculateInitialTransferOrbit {
     local orbitPe is ship:orbit:semimajoraxis.
     local orbitAp is target:orbit:semimajoraxis.
     local e is (orbitAp - orbitPe) / (orbitAp + orbitPe).
@@ -75,11 +95,26 @@ function calculateTargetMovementDuringTransfer {
 function refineTransferNode {
     parameter initialNode.
 
+    return refineNode(initialNode, list(true, false)).
+}
+
+// Refine the correction node with a combination of hill climbing and bidirectional searching
+// to ensure the orbit is in the right direction
+function refineCorrectionNode {
+    parameter initialNode.
+
+    return refineNode(initialNode, list(false, true)).
+}
+
+function refineNode {
+    parameter initialNode, adjustmentDimensions.
+
     local refinedNode is hillClimb(initialNode, orbitScoringFunction@, orbitVelocityLimitFunction@, 2).
     if (hasAntiClockwiseOrbit(refinedNode)) {
         return refinedNode.
     } else {
-        set refinedNode to biDirectionalSearch(refinedNode, hasAntiClockwiseOrbit@).
+        print "Searching for anticlockwise orbit".
+        set refinedNode to biDirectionalSearch(refinedNode, hasAntiClockwiseOrbit@, adjustmentDimensions).
         return refineTransferNode(refinedNode).
     }
 }
@@ -99,12 +134,21 @@ function hillClimb {
         until resultFound {
             local startingScore is scoreToBeat.
             local candidates is list(
-                node(timeSpan(nodeToBeat:eta), 0, 0, velocityLimitFunction(nodeToBeat:prograde + modFactor)),
-                node(timeSpan(nodeToBeat:eta), 0, 0, nodeToBeat:prograde - modFactor),
-                node(timeSpan(nodeToBeat:eta + modFactor), 0, 0, nodeToBeat:prograde),
-                node(timeSpan(nodeToBeat:eta - modFactor), 0, 0, nodeToBeat:prograde),
-                node(timeSpan(nodeToBeat:eta + modFactor), 0, 0, velocityLimitFunction(nodeToBeat:prograde + modFactor)),
-                node(timeSpan(nodeToBeat:eta - modFactor), 0, 0, nodeToBeat:prograde - modFactor)
+                node(timeSpan(nodeToBeat:eta + modFactor), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde),
+                node(timeSpan(nodeToBeat:eta - modFactor), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde),
+                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut + modFactor, nodeToBeat:normal, nodeToBeat:prograde),
+                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut - modFactor, nodeToBeat:normal, nodeToBeat:prograde),
+                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal + modFactor, nodeToBeat:prograde),
+                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal - modFactor, nodeToBeat:prograde),
+                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde + modFactor),
+                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde - modFactor)
+                //node(timeSpan(nodeToBeat:eta), 0, 0, velocityLimitFunction(nodeToBeat:prograde + modFactor)),
+                //node(timeSpan(nodeToBeat:eta), 0, 0, velocityLimitFunction(nodeToBeat:prograde + modFactor)),
+                //node(timeSpan(nodeToBeat:eta), 0, 0, nodeToBeat:prograde - modFactor),
+                //node(timeSpan(nodeToBeat:eta + modFactor), 0, 0, nodeToBeat:prograde),
+                //node(timeSpan(nodeToBeat:eta - modFactor), 0, 0, nodeToBeat:prograde),
+                //node(timeSpan(nodeToBeat:eta + modFactor), 0, 0, velocityLimitFunction(nodeToBeat:prograde + modFactor)),
+                //node(timeSpan(nodeToBeat:eta - modFactor), 0, 0, nodeToBeat:prograde - modFactor)
             ).
 
             for candidate in candidates {
@@ -129,17 +173,22 @@ function hillClimb {
 
 // Moves the burn node in both directions in time until a condition is true
 function biDirectionalSearch {
-    parameter initialNode, conditionFunction.
+    parameter initialNode, conditionFunction, adjustmentDimensions.
 
     local conditionTrue is false.
     local result is initialNode.
     local modFactor is 0.
     until conditionTrue {
         set modFactor to modFactor + 1.
-        local candidates is list(
-                node(timeSpan(initialNode:eta - modFactor), initialNode:radialOut, initialNode:normal, initialNode:prograde),
-                node(timeSpan(initialNode:eta + modFactor), initialNode:radialOut, initialNode:normal, initialNode:prograde)
-        ).
+        local candidates is list().
+
+        if (adjustmentDimensions[0]) { // Adjust time
+            candidates:add(node(timeSpan(initialNode:eta - modFactor), initialNode:radialOut, initialNode:normal, initialNode:prograde)).
+            candidates:add(node(timeSpan(initialNode:eta + modFactor), initialNode:radialOut, initialNode:normal, initialNode:prograde)).
+        } else if adjustmentDimensions[1] { // Adjust radial burn
+            candidates:add(node(timeSpan(initialNode:eta), initialNode:radialOut - modFactor, initialNode:normal, initialNode:prograde)).
+            candidates:add(node(timeSpan(initialNode:eta), initialNode:radialOut + modFactor, initialNode:normal, initialNode:prograde)).
+        }
 
         for candidate in candidates {
             if (conditionFunction(candidate)) {
@@ -166,10 +215,15 @@ function orbitScoringFunction {
         set scoringTimestamp to time:seconds + nodeToScore:orbit:nextPatch:eta:periapsis.
     }
 
-    local bodyPosition is positionAt(target, scoringTimestamp) - positionAt(ship, scoringTimestamp).
+    local shipPositionRelativeToBody is positionAt(ship, scoringTimestamp) - positionAt(target, scoringTimestamp).
+    // Take the x-z component to get the vector pointing at the equator at the same longitude
+    local equatorVectorX is vDot(shipPositionRelativeToBody, v(1,0,0)).
+    local equatorVectorZ is vDot(shipPositionRelativeToBody, v(0,0,1)).
+    local equatorVector is v(equatorVectorX, 0, equatorVectorZ).
+    set equatorVector:mag to targetAltitude + target:radius.
 
-    // Calculate the altitude component of the score
-    local score is abs(bodyPosition:mag - target:radius - targetAltitude).
+    // Calculate how far the periapsis is off the equator at the target altitude
+    local score is abs((shipPositionRelativeToBody - equatorVector):mag).
 
     remove nodeToScore.
     return score.
