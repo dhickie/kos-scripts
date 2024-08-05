@@ -5,7 +5,7 @@ runOncePath("0:/operations/orbit.ks").
 function launchFromKerbin {
     rcs on.
 
-    //doKerbinLaunch().
+    doKerbinLaunch().
     circulariseOrbit(eta:apoapsis).
     
     rcs off.
@@ -34,6 +34,7 @@ function doKerbinLaunch {
     when (ship:availableThrustAt(0) < maxAvailableThrust) then {
         wait until stage:ready.
         stage.
+        wait 0.1.
         set maxAvailableThrust to ship:availableThrustAt(0).
         preserve.
     }

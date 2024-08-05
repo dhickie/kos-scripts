@@ -54,7 +54,9 @@ function calculateTransferBurn {
     }
 
     // Calculate the required increase in velocity to reach projected apoapsis
-    local requiredVelocity is calculateOrbitalVelocity(ship:body, ship:orbit:semimajoraxis, transferOrbit:semimajoraxis).
+    local radiusAtNode is (positionAt(ship, time:seconds + nodeEta) - ship:body:position):mag.
+    local transferSma is (radiusAtNode + target:orbit:apoapsis) / 2.
+    local requiredVelocity is calculateOrbitalVelocity(ship:body, radiusAtNode, transferSma).
     local deltaV is requiredVelocity - ship:velocity:orbit:mag.
 
     // Refine the node with hill cimbing to reach desired final altitude
@@ -95,7 +97,7 @@ function calculateTargetMovementDuringTransfer {
 function refineTransferNode {
     parameter initialNode.
 
-    return refineNode(initialNode, list(true, false)).
+    return refineNode(initialNode, true, list(true, false)).
 }
 
 // Refine the correction node with a combination of hill climbing and bidirectional searching
@@ -103,14 +105,14 @@ function refineTransferNode {
 function refineCorrectionNode {
     parameter initialNode.
 
-    return refineNode(initialNode, list(false, true)).
+    return refineNode(initialNode, true, list(false, true)).
 }
 
 function refineNode {
-    parameter initialNode, adjustmentDimensions.
+    parameter initialNode, searchForAntiClockwiseOrbit, adjustmentDimensions.
 
     local refinedNode is hillClimb(initialNode, orbitScoringFunction@, orbitVelocityLimitFunction@, 2).
-    if (hasAntiClockwiseOrbit(refinedNode)) {
+    if (hasAntiClockwiseOrbit(refinedNode) or not searchForAntiClockwiseOrbit) {
         return refinedNode.
     } else {
         print "Searching for anticlockwise orbit".
@@ -142,13 +144,6 @@ function hillClimb {
                 node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal - modFactor, nodeToBeat:prograde),
                 node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde + modFactor),
                 node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde - modFactor)
-                //node(timeSpan(nodeToBeat:eta), 0, 0, velocityLimitFunction(nodeToBeat:prograde + modFactor)),
-                //node(timeSpan(nodeToBeat:eta), 0, 0, velocityLimitFunction(nodeToBeat:prograde + modFactor)),
-                //node(timeSpan(nodeToBeat:eta), 0, 0, nodeToBeat:prograde - modFactor),
-                //node(timeSpan(nodeToBeat:eta + modFactor), 0, 0, nodeToBeat:prograde),
-                //node(timeSpan(nodeToBeat:eta - modFactor), 0, 0, nodeToBeat:prograde),
-                //node(timeSpan(nodeToBeat:eta + modFactor), 0, 0, velocityLimitFunction(nodeToBeat:prograde + modFactor)),
-                //node(timeSpan(nodeToBeat:eta - modFactor), 0, 0, nodeToBeat:prograde - modFactor)
             ).
 
             for candidate in candidates {
@@ -209,9 +204,11 @@ function orbitScoringFunction {
     // If the resulting orbit doesn't contain an encounter with the target body
     // then calculate the distance between the ship and the target point at the apoapsis
     local scoringTimestamp is 0.
-    if not nodeToScore:orbit:hasNextPatch {
+    if not nodeToScore:orbit:hasNextPatch { // Doesn't have an encounter
         set scoringTimestamp to time:seconds + nodeToScore:orbit:eta:apoapsis.
-    } else {
+    } else if nodeToScore:orbit:hasNextPatch and nodeToScore:orbit:nextPatch:body:name <> target:name { // Has an encounter with a different body
+        set scoringTimestamp to time:seconds + nodeToScore:orbit:nextPatchEta.
+    } else { // Has an encounter with the target body
         set scoringTimestamp to time:seconds + nodeToScore:orbit:nextPatch:eta:periapsis.
     }
 
@@ -252,7 +249,7 @@ function hasAntiClockwiseOrbit {
 
     add nodeToCheck.
     local result is false.
-    if nodeToCheck:orbit:hasNextPatch {
+    if nodeToCheck:orbit:hasNextPatch and nodeToCheck:orbit:nextPatch:body:name = target:name {
         local timeToCheck is time:seconds + nodeToCheck:orbit:nextPatch:eta:periapsis.
 
         local bodyNormal is calculateOrbitNormal(target).

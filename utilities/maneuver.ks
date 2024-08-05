@@ -122,3 +122,20 @@ function shipMassAtStage {
 
     return shipMass.
 }
+
+// Calculates the stopping distance to come to a halt relative to another orbitable
+// Assumes the other orbitable is orbiting the same SOI body
+function calculateStoppingDistance {
+    parameter orbitable.
+
+    // How long would it take to cancel out our current velocity?
+    local t is calculateManeuverBurnTime((ship:velocity:orbit - orbitable:velocity:orbit):mag).
+
+    // How far would the ship travel in that time?
+    local F is shipPossibleThrust().
+    local a is F / ship:mass.
+    local u is ship:velocity:surface:mag.
+
+    local result is (u * t) - ((a * t^2)/2).
+    return result.
+}

@@ -57,15 +57,24 @@ function calculateInclinationBurnEta {
     local ascendingNodeEta is calculateEtaFromVector(nodeVector, shipNormal, ship).
     local descendingNodeEta is calculateEtaFromVector(-nodeVector, shipNormal, ship).
 
-    // Return whichever is soonest, and let the rest of the script which we've chosen
-    if ascendingNodeEta < descendingNodeEta {
+    // Return whichever is soonest, and let the rest of the script know which we've chosen
+    // If the node is under a minute away, choose the next one instead
+    if ascendingNodeEta < descendingNodeEta and ascendingNodeEta > 60 {
         print "Burning at ascending node".
         set inclinationBurnNodeType to "ascending".
         return ascendingNodeEta.
-    } else {
+    } else if ascendingNodeEta < descendingNodeEta and ascendingNodeEta < 60 {
         print "Burning at descending node".
         set inclinationBurnNodeType to "descending".
         return descendingNodeEta.
+    } else if descendingNodeEta < ascendingNodeEta and descendingNodeEta > 60{
+        print "Burning at descending node".
+        set inclinationBurnNodeType to "descending".
+        return descendingNodeEta.
+    } else {
+        print "Burning at ascending node".
+        set inclinationBurnNodeType to "ascending".
+        return ascendingNodeEta.
     }
 }
 
