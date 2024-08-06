@@ -1,13 +1,24 @@
 // Dependencies
+runOncePath("0:/operations/matchInclination.ks").
 runOncePath("0:/utilities/orbit.ks").
 runOncePath("0:/utilities/maneuver.ks").
 runOncePath("0:/utilities/ship.ks").
 runOncePath("0:/utilities/vector.ks").
+runOncePath("0:/utilities/kos.ks").
 
 function land {
-    parameter lngHours, lngMinutes, lngSeconds. // Longitude of target landing site
+    parameter lat, lng. // Position of the landing site 
 
-    killLateralVelocityAboveLandingSite(lngHours, lngMinutes, lngSeconds).
+    timer(1, printLatLng@).
+
+    // Match the orbit inclination with the equator if it isn't already
+    if ship:orbit:inclination > 0.1 {
+        matchInclinationToEquator().
+    }
+
+    adjustInclinationForLanding(lat, lng).
+
+    killLateralVelocityAboveLandingSite(lat, lng).
 
     // Lock the steering to surface retrograde but with roll locked
     local roll is ship:facing:roll.
@@ -26,11 +37,54 @@ function land {
     set ag3 to true.
 }
 
-function killLateralVelocityAboveLandingSite {
-    parameter lngHours, lngMinutes, lngSeconds. // Longitude of target landing site
+function printLatLng {
+    print "Latitude: " + ship:geoposition:lat + ", Longitude: " + ship:geoposition:lng.
+}
 
-    local lngDec is lngHours + (lngMinutes / 60) + (lngSeconds / 3600).
-    local landingSite is latLng(0, lngDec).
+function adjustInclinationForLanding {
+    parameter lat, lng.
+
+    // Calculate the location of the node we need to burn at to adjust the inclination just enough to reach
+    // the landing site latitude
+    local nodeLongitude is addToLongitude(lng, -90). 
+    local nodeLocation is latLng(0, nodeLongitude).
+    local nodeVector is nodeLocation:position - ship:body:position.
+
+    // Calculate how long until we reach the node
+    local orbitNormal is calculateOrbitNormal(ship).
+    local nodeEta is calculateEtaAbovePoint(nodeVector, orbitNormal, ship).
+
+    // Calculate the velocity needed at the node to have the desired inclination
+    local rotationAxis is positionAt(ship, time:seconds + nodeEta) - ship:body:position.
+    local velocityAtNode is velocityAt(ship, time:seconds + nodeEta):orbit.
+    local rotation is -lat.
+    local finalVelocity is rotateVectorAboutAxis(velocityAtNode, rotationAxis, rotation).
+
+    // Calculate the burn required to reach the desired velocity
+    local deltaV is finalVelocity - velocityAtNode.
+    local burnNode is createManeuverFromDeltaV(nodeEta, deltaV).
+
+    // Execute the burn
+    executeManeuver(burnNode).
+}
+
+function addToLongitude {
+    parameter lng, valueToAdd. // Can be negative
+
+    local result is lng + valueToAdd.
+    if valueToAdd < -180 {
+        set result to result + 360.
+    } else if valueToAdd > 180 {
+        set result to result - 360.
+    }
+
+    return result.
+}
+
+function killLateralVelocityAboveLandingSite {
+    parameter lat, lng. // Position of the landing site
+
+    local landingSite is latLng(lat, lng).
 
     // Calculate when the ship will pass over the target landing site
     local landingSiteVector is landingSite:position - ship:body:position.

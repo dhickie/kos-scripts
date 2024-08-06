@@ -36,7 +36,7 @@ function executeManeuver {
     local rampDownPoint is ship:availableThrust / ship:mass.
 
     // Set the throttle to ramp down as we approach target velocity
-    lock throttle to max(mnv:burnVector:mag / rampDownPoint, 0.05).
+    lock throttle to max(mnv:burnVector:mag / rampDownPoint, 0.01).
 
     // Wait until the current burn vector has deviated by 30 degrees from the original
     // burn vector, then kill the throttle
