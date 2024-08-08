@@ -5,11 +5,12 @@ runOncePath("0:/utilities/maneuver.ks").
 runOncePath("0:/utilities/ship.ks").
 runOncePath("0:/utilities/vector.ks").
 runOncePath("0:/utilities/kos.ks").
+runOncePath("0:/utilities/geocoordinates.ks").
 
 function land {
     parameter lat, lng. // Position of the landing site 
 
-    timer(1, printLatLng@).
+    //timer(1, printLatLng@).
 
     // Match the orbit inclination with the equator if it isn't already
     if ship:orbit:inclination > 0.1 {
@@ -66,19 +67,6 @@ function adjustInclinationForLanding {
 
     // Execute the burn
     executeManeuver(burnNode).
-}
-
-function addToLongitude {
-    parameter lng, valueToAdd. // Can be negative
-
-    local result is lng + valueToAdd.
-    if valueToAdd < -180 {
-        set result to result + 360.
-    } else if valueToAdd > 180 {
-        set result to result - 360.
-    }
-
-    return result.
 }
 
 function killLateralVelocityAboveLandingSite {

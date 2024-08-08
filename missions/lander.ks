@@ -9,7 +9,8 @@ until false {
     wait until ag1 or ag2.
 
     if ag1 {
-        land(-30, 134).
+        //land(-30, 134).
+        land(89, 0).
         toggle ag1.
     } else if ag2 {
         set target to "Speedy Cheetah 2".

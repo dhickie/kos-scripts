@@ -22,6 +22,15 @@ function rotateVectorAboutAxis {
     return v(xOut, yOut, zOut).
 }
 
+// Takes any vector and calculates the component of it that lies on a horizontal plane
+function projectToHorizontalPlane {
+    parameter vIn.
+
+    local vInX is vDot(vIn, v(1,0,0)).
+    local vInZ is vDot(vIn, v(0,0,1)).
+    return v(vInX, 0, vInZ).
+}
+
 function drawVector {
     parameter vector, label, originOrbitable is ship.
 

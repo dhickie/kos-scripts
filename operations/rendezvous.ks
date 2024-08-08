@@ -41,6 +41,7 @@ function maintainRendezvousTrajectory {
     // Wait until our velocity vector and the direction to the target drifts
     // or we reach the target position
     until target:position:mag < 1000 {
+        lock steering to prograde.
         wait until vAng(ship:velocity:orbit - target:velocity:orbit, target:position) > 5 or target:position:mag < 1000.
 
         if target:position:mag >= 1000 {

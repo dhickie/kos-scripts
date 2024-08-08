@@ -1,10 +1,11 @@
 // Dependencies
 runOncePath("0:/utilities/orbit.ks").
 runOncePath("0:/utilities/maneuver.ks").
+runOncePath("0:/utilities/vector.ks").
 
 // Circularises an orbit at the point the ship is at for the provided eta
 function circulariseOrbit {
-    parameter maneuverEta.
+    parameter maneuverEta, minimiseInclination is false.
 
     // Calculate required velocity
     print "Calculating circularisation burn".
@@ -20,18 +21,21 @@ function circulariseOrbit {
         set orbitalRadius to (positionAtEta - ship:body:position):mag.
     } else {
         local bodyVelocityAtEta is velocityAt(bodyAtEta, time:seconds + maneuverEta).
-        set velocityAtEta to bodyVelocityAtEta:orbit - shipVelocityAtEta:orbit.
+        set velocityAtEta to  shipVelocityAtEta:orbit - bodyVelocityAtEta:orbit.
         set orbitalRadius to (positionAtEta - bodyPositionAtEta):mag.
     }
 
-    print positionAtEta:mag.
-    print bodyPositionAtEta:mag.
-    print orbitalRadius.
     local requiredVelocity is calculateOrbitalVelocity(bodyAtEta, orbitalRadius, orbitalRadius).
-    local deltaV is requiredVelocity - velocityAtEta:mag.
-
-    // Add the burn to the flight plan
-    local burnNode is node(timeSpan(maneuverEta), 0, 0, deltaV).
+    local burnNode is node(0,0,0,0).
+    if minimiseInclination {
+        local requiredVelocityVector is projectToHorizontalPlane(velocityAtEta).
+        set requiredVelocityVector:mag to requiredVelocity.
+        local deltaV is requiredVelocityVector - velocityAtEta.
+        set burnNode to createManeuverFromDeltaV(maneuverEta, deltaV).
+    } else {
+        local deltaV is requiredVelocity - velocityAtEta:mag.
+        set burnNode to node(timeSpan(maneuverEta), 0, 0, deltaV).
+    }
 
     // Execute the burn
     print "Executing circularisation burn".

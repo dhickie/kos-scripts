@@ -1,5 +1,6 @@
 // Dependencies
 runOncePath("0:/utilities/orbit.ks").
+runOncePath("0:/utilities/geocoordinates.ks").
 runOncePath("0:/operations/orbit.ks").
 
 function launchFromKerbin {
@@ -22,7 +23,8 @@ function launchFromVacuum {
 function doKerbinLaunch {
     // Initial setup
     lock throttle to 1.
-    lock steering to heading(90, 90).
+    local compassHeading is calculateCompassHeading().
+    lock steering to heading(compassHeading, 90).
 
     print "Blast off!".
 
@@ -42,7 +44,7 @@ function doKerbinLaunch {
     // Wait until start of gravity turn, and begin
     wait until alt:radar > 10000.
     print "Beginning gravity turn".
-    lock steering to heading(90, calculateGravityTurn()).
+    lock steering to heading(compassHeading, calculateGravityTurn()).
 
     // Wait until apopasis gets to 100k and kill throttle
     wait until ship:apoapsis >= 100000.
@@ -57,14 +59,22 @@ function doVacuumLaunch {
     parameter targetAltitude.
 
     lock throttle to 1.
-    wait 1.
-    lock steering to heading (270, 135).
+    wait 0.5.
+    local compassHeading is calculateCompassHeading().
+    lock steering to heading(compassHeading, 45).
     legs off.
     lights off.
 
     wait until ship:apoapsis >= targetAltitude.
 
     lock throttle to 0.
+}
+
+// Calculates the compass direction the ship should point in to
+// result in as low an inclination orbit as possible
+function calculateCompassHeading {
+    local equatorCrossingPoint is latLng(0, addToLongitude(ship:geoposition:lng, 90)).
+    return equatorCrossingPoint:heading.
 }
 
 function calculateGravityTurn {

@@ -87,12 +87,12 @@ function calculateInclinationBurn {
     // Calculate the final velocity at that time, after the burn
     // Same magnitude as starting velocity, but rotated to have the same inclination as the target
     local inclinationChange is vAng(shipNormal, targetNormal).
-    local radialVector is -ship:body:position.
+    local radialVector is positionAt(ship, time:seconds + burnEta) - ship:body:position.
     local shipFinalVelocity is v(0,0,0).
     if (inclinationBurnNodeType = "ascending") {
-        set shipFinalVelocity to rotateVectorAboutAxis(shipStartingVelocity, radialVector, -inclinationChange).
-    } else {
         set shipFinalVelocity to rotateVectorAboutAxis(shipStartingVelocity, radialVector, inclinationChange).
+    } else {
+        set shipFinalVelocity to rotateVectorAboutAxis(shipStartingVelocity, radialVector, -inclinationChange).
     }
 
     // Get the burn deltaV by subtracting final from initial velocity

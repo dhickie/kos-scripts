@@ -1,3 +1,7 @@
+// Dependencies
+runOncePath("0:/utilities/orbit.ks").
+runOncePath("0:/utilities/vector.ks").
+
 function executeManeuver {
     parameter mnv.
 
@@ -40,7 +44,7 @@ function executeManeuver {
 
     // Wait until the current burn vector has deviated by 30 degrees from the original
     // burn vector, then kill the throttle
-    wait until vAng(originalBurnVector, mnv:burnVector) >= 30.
+    wait until vAng(originalBurnVector, mnv:burnVector) >= 30 and mnv:burnVector:mag < 10.
     lock throttle to 0.
     unlock steering.
     remove mnv.
@@ -58,6 +62,7 @@ function warpToManeuver {
     }
 
     kUniverse:timeWarp:warpTo(time:seconds + mnv:eta - burnDuration - 30).
+    wait until kUniverse:timeWarp:isSettled.
 }
 
 function createManeuverFromDeltaV {
@@ -65,9 +70,21 @@ function createManeuverFromDeltaV {
 
     // Get the prograde, normal & radial vectors for the ship
     local shipPosition is positionAt(ship, time:seconds + nodeEta).
-    local bodyPosition is ship:body:position - shipPosition.
+    local bodyAtEta is getBodyAtEta(ship:orbit, nodeEta).
 
-    local progradeVector is velocityAt(ship, time:seconds + nodeEta):orbit:normalized.
+    local shipVelocityAtEta is velocityAt(ship, time:seconds + nodeEta).
+    local velocityAtEta is 0.
+    local bodyPosition is v(0,0,0).
+    if bodyAtEta:name = ship:body:name {
+        set velocityAtEta to shipVelocityAtEta:orbit.
+        set bodyPosition to bodyAtEta:position - shipPosition.
+    } else {
+        local bodyVelocityAtEta is velocityAt(bodyAtEta, time:seconds + nodeEta).
+        set velocityAtEta to shipVelocityAtEta:orbit - bodyVelocityAtEta:orbit.
+        set bodyPosition to positionAt(bodyAtEta, time:seconds + nodeEta) - shipPosition.
+    }
+
+    local progradeVector is velocityAtEta:normalized.
     local normalVector is vCrs(bodyPosition, progradeVector):normalized.
     local radialVector is -bodyPosition:normalized.
 

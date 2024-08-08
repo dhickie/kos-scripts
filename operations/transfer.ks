@@ -11,24 +11,22 @@ function transferToTarget {
     parameter tgtAlt.
     set targetAltitude to tgtAlt.
 
-    print "Calculating initial node".
-    local transferBurn is calculateTransferBurn().
+    //print "Calculating initial node".
+    //local transferBurn is calculateTransferBurn().
 
     // Execute the transfer burn
-    executeManeuver(transferBurn).
+    //executeManeuver(transferBurn).
 
-    // If this is a long transfer (> 1 day), then get half way and do a correction burn
+    // Do a correction burn when around 1/3 of the way to the periapsis
+    //local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
+    //local correctionBurn is calculateCorrectionBurn().
+
+    // Execute the correction burn
+    //executeManeuver(correctionBurn).
+
+    // Circularise the orbit around the target, minimising inclination
     local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
-    if timeToPeriapsis > 86400 {
-        local correctionBurn is calculateCorrectionBurn().
-
-        // Execute the correction burn
-        executeManeuver(correctionBurn).
-    }
-
-    // Circularise the orbit around the target
-    local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
-    circulariseOrbit(timeToPeriapsis).
+    circulariseOrbit(timeToPeriapsis, true).
 }
 
 function calculateTransferBurn {
@@ -66,7 +64,7 @@ function calculateTransferBurn {
 
 function calculateCorrectionBurn {
     local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
-    local correctionEta is timeToPeriapsis / 2.
+    local correctionEta is timeToPeriapsis / 3.
     local initialNode is node(timeSpan(correctionEta), 0, 0, 0).
     return refineCorrectionNode(initialNode).
 }
@@ -97,7 +95,7 @@ function calculateTargetMovementDuringTransfer {
 function refineTransferNode {
     parameter initialNode.
 
-    return refineNode(initialNode, true, list(true, false)).
+    return refineNode(initialNode, false, transferOrbitScoringFunction@, list(true, false, false, true)).
 }
 
 // Refine the correction node with a combination of hill climbing and bidirectional searching
@@ -105,18 +103,18 @@ function refineTransferNode {
 function refineCorrectionNode {
     parameter initialNode.
 
-    return refineNode(initialNode, true, list(false, true)).
+    return refineNode(initialNode, true, correctionOrbitScoringFunction@, list(false, true, true, true)).
 }
 
 function refineNode {
-    parameter initialNode, searchForAntiClockwiseOrbit, adjustmentDimensions.
+    parameter initialNode, searchForAntiClockwiseOrbit, orbitScoringFunction, hillClimbFactors.
 
-    local refinedNode is hillClimb(initialNode, orbitScoringFunction@, orbitVelocityLimitFunction@, 2).
+    local refinedNode is hillClimb(initialNode, orbitScoringFunction, 8, hillClimbFactors).
     if (hasAntiClockwiseOrbit(refinedNode) or not searchForAntiClockwiseOrbit) {
         return refinedNode.
     } else {
         print "Searching for anticlockwise orbit".
-        set refinedNode to biDirectionalSearch(refinedNode, hasAntiClockwiseOrbit@, adjustmentDimensions).
+        set refinedNode to biDirectionalSearch(refinedNode, hasAntiClockwiseOrbit@).
         return refineTransferNode(refinedNode).
     }
 }
@@ -124,8 +122,8 @@ function refineNode {
 function hillClimb {
     parameter initialNode, // The node to start from 
         scoringFunction, // A function delegate that scores nodes to determine if they've improved
-        velocityLimitFunction, // A function that limits the maximum velocity a node can reach
-        initialModFactor. // The initial amount we should modify node parameters by in candidates
+        initialModFactor,   // The initial amount we should modify node parameters by in candidates
+        modificationFactors. // Which factors of the node should be modified in this hill climb
 
     local nodeToBeat is initialNode.
     local scoreToBeat is scoringFunction(nodeToBeat).
@@ -135,16 +133,24 @@ function hillClimb {
         local resultFound is false.
         until resultFound {
             local startingScore is scoreToBeat.
-            local candidates is list(
-                node(timeSpan(nodeToBeat:eta + modFactor), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde),
-                node(timeSpan(nodeToBeat:eta - modFactor), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde),
-                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut + modFactor, nodeToBeat:normal, nodeToBeat:prograde),
-                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut - modFactor, nodeToBeat:normal, nodeToBeat:prograde),
-                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal + modFactor, nodeToBeat:prograde),
-                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal - modFactor, nodeToBeat:prograde),
-                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde + modFactor),
-                node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde - modFactor)
-            ).
+            local candidates is list().
+
+            if modificationFactors[0] {
+                candidates:add(node(timeSpan(nodeToBeat:eta + modFactor), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde)).
+                candidates:add(node(timeSpan(nodeToBeat:eta - modFactor), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde)).
+            }
+            if modificationFactors[1] {
+                candidates:add(node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut + modFactor, nodeToBeat:normal, nodeToBeat:prograde)).
+                candidates:add(node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut - modFactor, nodeToBeat:normal, nodeToBeat:prograde)).
+            }
+            if modificationFactors[2] {
+                candidates:add(node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal + modFactor, nodeToBeat:prograde)).
+                candidates:add(node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal - modFactor, nodeToBeat:prograde)).
+            }
+            if modificationFactors[3] {
+                candidates:add(node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde + modFactor)).
+                candidates:add(node(timeSpan(nodeToBeat:eta), nodeToBeat:radialOut, nodeToBeat:normal, nodeToBeat:prograde - modFactor)).
+            }
 
             for candidate in candidates {
                 local candidateScore is scoringFunction(candidate).
@@ -168,7 +174,7 @@ function hillClimb {
 
 // Moves the burn node in both directions in time until a condition is true
 function biDirectionalSearch {
-    parameter initialNode, conditionFunction, adjustmentDimensions.
+    parameter initialNode, conditionFunction.
 
     local conditionTrue is false.
     local result is initialNode.
@@ -176,14 +182,8 @@ function biDirectionalSearch {
     until conditionTrue {
         set modFactor to modFactor + 1.
         local candidates is list().
-
-        if (adjustmentDimensions[0]) { // Adjust time
-            candidates:add(node(timeSpan(initialNode:eta - modFactor), initialNode:radialOut, initialNode:normal, initialNode:prograde)).
-            candidates:add(node(timeSpan(initialNode:eta + modFactor), initialNode:radialOut, initialNode:normal, initialNode:prograde)).
-        } else if adjustmentDimensions[1] { // Adjust radial burn
-            candidates:add(node(timeSpan(initialNode:eta), initialNode:radialOut - modFactor, initialNode:normal, initialNode:prograde)).
-            candidates:add(node(timeSpan(initialNode:eta), initialNode:radialOut + modFactor, initialNode:normal, initialNode:prograde)).
-        }
+        candidates:add(node(timeSpan(initialNode:eta), initialNode:radialOut - modFactor, initialNode:normal, initialNode:prograde)).
+        candidates:add(node(timeSpan(initialNode:eta), initialNode:radialOut + modFactor, initialNode:normal, initialNode:prograde)).
 
         for candidate in candidates {
             if (conditionFunction(candidate)) {
@@ -196,7 +196,31 @@ function biDirectionalSearch {
     return result.
 }
 
-function orbitScoringFunction {
+function transferOrbitScoringFunction {
+    parameter nodeToScore.
+
+    add nodeToScore.
+
+    // If the resulting orbit doesn't contain an encounter with the target body
+    // then calculate the distance between the ship and the target altitude at the apoapsis
+    local scoringTimestamp is 0.
+    if not nodeToScore:orbit:hasNextPatch { // Doesn't have an encounter
+        set scoringTimestamp to time:seconds + nodeToScore:orbit:eta:apoapsis.
+    } else if nodeToScore:orbit:hasNextPatch and nodeToScore:orbit:nextPatch:body:name <> target:name { // Has an encounter with a different body
+        set scoringTimestamp to time:seconds + nodeToScore:orbit:nextPatchEta.
+    } else { // Has an encounter with the target body
+        set scoringTimestamp to time:seconds + nodeToScore:orbit:nextPatch:eta:periapsis.
+    }
+
+    local shipPositionRelativeToBody is positionAt(ship, scoringTimestamp) - positionAt(target, scoringTimestamp).
+    local score is abs(shipPositionRelativeToBody:mag - target:radius - targetAltitude).
+
+    remove nodeToScore.
+
+    return score.
+}
+
+function correctionOrbitScoringFunction {
     parameter nodeToScore.
 
     add nodeToScore.
@@ -214,9 +238,7 @@ function orbitScoringFunction {
 
     local shipPositionRelativeToBody is positionAt(ship, scoringTimestamp) - positionAt(target, scoringTimestamp).
     // Take the x-z component to get the vector pointing at the equator at the same longitude
-    local equatorVectorX is vDot(shipPositionRelativeToBody, v(1,0,0)).
-    local equatorVectorZ is vDot(shipPositionRelativeToBody, v(0,0,1)).
-    local equatorVector is v(equatorVectorX, 0, equatorVectorZ).
+    local equatorVector is projectToHorizontalPlane(shipPositionRelativeToBody).
     set equatorVector:mag to targetAltitude + target:radius.
 
     // Calculate how far the periapsis is off the equator at the target altitude
@@ -224,22 +246,6 @@ function orbitScoringFunction {
 
     remove nodeToScore.
     return score.
-}
-
-function orbitVelocityLimitFunction {
-    parameter vIn.
-
-    // Don't let the velocity exceed the amount that would place the apopasis at targetAltitude
-    // past the target's apoapsis
-    local maxApoapsis is target:orbit:apoapsis + target:radius + targetAltitude.
-    local maxSma is (ship:orbit:periapsis + maxApoapsis) / 2.
-    local orbitVelocity is calculateOrbitalVelocity(ship:body, ship:orbit:semimajoraxis, maxSma).
-
-    if vIn > orbitVelocity {
-        return orbitVelocity.
-    } else {
-        return vIn.
-    }
 }
 
 // Checks whether the orbit around the target that results from the provided node
