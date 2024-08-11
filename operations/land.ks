@@ -10,20 +10,20 @@ runOncePath("0:/utilities/parts.ks").
 function land {
     parameter lat, lng. // Position of the landing site 
 
-    //timer(1, printLatLng@).
+    timer(1, printLatLng@).
 
     // Extend required gear
-    //extendLanderSolar().
-    //extendLanderComms().
+    extendLanderSolar().
+    extendLanderComms().
 
     // Match the orbit inclination with the equator if it isn't already
-    //if ship:orbit:inclination > 0.1 {
-    //    matchInclinationToEquator().
-    //}
+    if ship:orbit:inclination > 0.1 {
+        matchInclinationToEquator().
+    }
 
-    //adjustInclinationForLanding(lat, lng).
+    adjustInclinationForLanding(lat, lng).
 
-    //killLateralVelocityAboveLandingSite(lat, lng).
+    killLateralVelocityAboveLandingSite(lat, lng).
 
     // Lock the steering to surface retrograde but with roll locked
     local roll is ship:facing:roll.

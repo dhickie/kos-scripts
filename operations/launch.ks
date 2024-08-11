@@ -51,6 +51,7 @@ function doKerbinLaunch {
     wait until ship:apoapsis >= 100000.
     print "Target apoapsis reached, waiting to leave atmo".
     lock throttle to 0.
+    lock steering to heading(compassHeading, 0).
 
     // Wait until we get out of atmo before continuing
     wait until alt:radar > 70000.

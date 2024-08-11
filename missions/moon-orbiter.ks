@@ -9,12 +9,12 @@ runOncePath("0:/utilities/parts.ks").
 
 identifyShipParts().
 
-//if (ship:status = "prelaunch") {
+if (ship:status = "prelaunch") {
     // Set target body
     set target to targetBody.
     
     // Launch the ship
-    //launchFromKerbin().
+    launchFromKerbin().
     
     // Match inclination to the target if we're sufficiently off to warrant it
     if abs(target:orbit:inclination - ship:orbit:inclination) > 0.2 {
@@ -29,4 +29,4 @@ identifyShipParts().
 
     // Kill any rotation of the ship
     lock steering to "kill".
-//}
+}

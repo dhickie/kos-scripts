@@ -25,7 +25,7 @@ function transferToTarget {
     executeManeuver(correctionBurn).
 
     // Circularise the orbit around the target, minimising inclination
-    local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
+    set timeToPeriapsis to ship:orbit:nextPatch:eta:periapsis.
     circulariseOrbit(timeToPeriapsis, true).
 }
 
@@ -114,8 +114,8 @@ function refineNode {
         return refinedNode.
     } else {
         print "Searching for anticlockwise orbit".
-        set refinedNode to biDirectionalSearch(refinedNode, hasAntiClockwiseOrbit@).
-        return refineTransferNode(refinedNode).
+        set refinedNode to hillClimb(refinedNode, antiClockwiseOrbitScoringFunction@, 8, hillClimbFactors).
+        return refineNode(refinedNode, searchForAntiClockwiseOrbit, orbitScoringFunction, hillClimbFactors).
     }
 }
 
@@ -172,30 +172,6 @@ function hillClimb {
     return nodeToBeat.
 }
 
-// Moves the burn node in both directions in time until a condition is true
-function biDirectionalSearch {
-    parameter initialNode, conditionFunction.
-
-    local conditionTrue is false.
-    local result is initialNode.
-    local modFactor is 0.
-    until conditionTrue {
-        set modFactor to modFactor + 1.
-        local candidates is list().
-        candidates:add(node(timeSpan(initialNode:eta), initialNode:radialOut - modFactor, initialNode:normal, initialNode:prograde)).
-        candidates:add(node(timeSpan(initialNode:eta), initialNode:radialOut + modFactor, initialNode:normal, initialNode:prograde)).
-
-        for candidate in candidates {
-            if (conditionFunction(candidate)) {
-                set result to candidate.
-                set conditionTrue to true.
-            }
-        }
-    }
-
-    return result.
-}
-
 function transferOrbitScoringFunction {
     parameter nodeToScore.
 
@@ -246,6 +222,30 @@ function correctionOrbitScoringFunction {
 
     remove nodeToScore.
     return score.
+}
+
+function antiClockwiseOrbitScoringFunction {
+    parameter nodeToScore.
+
+    add nodeToScore.
+
+    local scoringTimestamp is 0.
+    if not nodeToScore:orbit:hasNextPatch { // Doesn't have an encounter
+        set scoringTimestamp to time:seconds + nodeToScore:orbit:eta:apoapsis.
+    } else if nodeToScore:orbit:hasNextPatch and nodeToScore:orbit:nextPatch:body:name <> target:name { // Has an encounter with a different body
+        set scoringTimestamp to time:seconds + nodeToScore:orbit:nextPatchEta.
+    } else { // Has an encounter with the target body
+        set scoringTimestamp to time:seconds + nodeToScore:orbit:nextPatch:eta:periapsis.
+    }
+
+    local bodyPositionRelativeToShip is positionAt(target, scoringTimestamp) - positionAt(ship, scoringTimestamp).
+    local shipVelocityRelativeToBody is velocityAt(ship, scoringTimestamp):orbit - velocityAt(target, scoringTimestamp):orbit.
+    local shipOrbitNormal is vCrs(bodyPositionRelativeToShip, shipVelocityRelativeToBody).
+    local bodyOrbitNormal is calculateOrbitNormal(target).
+
+    remove nodeToScore.
+
+    return vAng(shipOrbitNormal, bodyOrbitNormal).
 }
 
 // Checks whether the orbit around the target that results from the provided node
