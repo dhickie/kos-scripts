@@ -1,4 +1,5 @@
 local shipParts is lexicon().
+local partsIdentified is false.
 if exists("0:/logs/parts.txt") {
     deletePath("0:/logs/parts.txt").
 }
@@ -11,20 +12,27 @@ function write {
 }
 
 function identifyShipParts {
-    identifySolar().
-    identifyComms().
-    //identifyDrills().
-    //identifyHeatSinks().
+    if not partsIdentified {
+        set partsIdentified to true.
+        
+        identifySolar().
+        identifyComms().
+        identifyLadders().
+    }
 }
 
 function identifySolar {
-    identifyModules("launcher-solar", "ModuleDeployableSolarPanel", "launcher-solar").
-    identifyModules("lander-solar", "ModuleDeployableSolarPanel", "lander-solar").
+    identifyModules("launcher-solar", "ModuleDeployableSolarPanel").
+    identifyModules("lander-solar", "ModuleDeployableSolarPanel").
 }
 
 function identifyComms {
-    identifyModules("launcher-comms", "ModuleDeployableAntenna", "launcher-comms").
-    identifyModules("lander-comms", "ModuleDeployableAntenna", "lander-comms").
+    identifyModules("launcher-comms", "ModuleDeployableAntenna").
+    identifyModules("lander-comms", "ModuleDeployableAntenna").
+}
+
+function identifyLadders {
+    identifyModules("ladders", "RetractableLadder").
 }
 
 function identifyDrills {
@@ -71,20 +79,16 @@ function retractLanderComms {
     doModuleEvent("lander-comms", "retract antenna").
 }
 
-function extendDrills {
-
+function lowerLadders {
+    doModuleEvent("ladders", "extend ladder").
 }
 
-function startDrills {
-
-}
-
-function extendHeatsinks {
-
+function raiseLadders {
+    doModuleEvent("ladders", "retract ladder").
 }
 
 function identifyModules {
-    parameter partsTag, moduleName, moduleKey.
+    parameter partsTag, moduleName.
 
     local taggedParts is ship:partsTagged(partsTag).
     set moduleList to list().
@@ -92,16 +96,18 @@ function identifyModules {
         local targetModule is taggedPart:getModule(moduleName).
         moduleList:add(targetModule).
     }
-    shipParts:add(moduleKey, moduleList).
+    shipParts:add(partsTag, moduleList).
 }
 
 function doModuleEvent {
     parameter moduleKey, eventName.
 
-    local modules is shipParts[moduleKey].
-    for module in modules {
-        if module:hasEvent(eventName) {
-            module:doEvent(eventName).
+    if shipParts:hasKey(modulekey) {
+        local modules is shipParts[moduleKey].
+        for module in modules {
+            if module:hasEvent(eventName) {
+                module:doEvent(eventName).
+            }
         }
     }
 }

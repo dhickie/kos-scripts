@@ -11,18 +11,18 @@ function transferToTarget {
     parameter tgtAlt.
     set targetAltitude to tgtAlt.
 
-    //print "Calculating initial node".
-    //local transferBurn is calculateTransferBurn().
+    print "Calculating initial node".
+    local transferBurn is calculateTransferBurn().
 
     // Execute the transfer burn
-    //executeManeuver(transferBurn).
+    executeManeuver(transferBurn).
 
     // Do a correction burn when around 1/3 of the way to the periapsis
-    //local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
-    //local correctionBurn is calculateCorrectionBurn().
+    local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.
+    local correctionBurn is calculateCorrectionBurn().
 
     // Execute the correction burn
-    //executeManeuver(correctionBurn).
+    executeManeuver(correctionBurn).
 
     // Circularise the orbit around the target, minimising inclination
     local timeToPeriapsis is ship:orbit:nextPatch:eta:periapsis.

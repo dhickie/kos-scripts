@@ -2,24 +2,28 @@
 runOncePath("0:/operations/matchInclination.ks").
 runOncePath("0:/utilities/orbit.ks").
 runOncePath("0:/utilities/maneuver.ks").
-runOncePath("0:/utilities/ship.ks").
 runOncePath("0:/utilities/vector.ks").
 runOncePath("0:/utilities/kos.ks").
 runOncePath("0:/utilities/geocoordinates.ks").
+runOncePath("0:/utilities/parts.ks").
 
 function land {
     parameter lat, lng. // Position of the landing site 
 
     //timer(1, printLatLng@).
 
+    // Extend required gear
+    //extendLanderSolar().
+    //extendLanderComms().
+
     // Match the orbit inclination with the equator if it isn't already
-    if ship:orbit:inclination > 0.1 {
-        matchInclinationToEquator().
-    }
+    //if ship:orbit:inclination > 0.1 {
+    //    matchInclinationToEquator().
+    //}
 
-    adjustInclinationForLanding(lat, lng).
+    //adjustInclinationForLanding(lat, lng).
 
-    killLateralVelocityAboveLandingSite(lat, lng).
+    //killLateralVelocityAboveLandingSite(lat, lng).
 
     // Lock the steering to surface retrograde but with roll locked
     local roll is ship:facing:roll.
@@ -35,7 +39,7 @@ function land {
     unlock steering.
 
     // Lower the ladder
-    set ag3 to true.
+    lowerLadders().
 }
 
 function printLatLng {
@@ -92,53 +96,30 @@ function killLateralVelocityAboveLandingSite {
 }
 
 function waitUntilSuicideBurn {
-    // Lock a variable to show how far down the ship would travel if we applied
-    // max thrust now
-    lock maxDownwardDistance to calculateMaxDownwardTravel().
+    // Lock a variable to show the throttle required to stop the ship at the surface
+    lock requiredThrottle to calculateRequiredThrottle().
 
-    // Wait until we hit the last point we can burn, with a buffer 
-    // to accommodate the rate of physics ticks and increase in g as we approach
-    wait until maxDownwardDistance >= (alt:radar - (ship:velocity:surface:mag * 1)).
+    // Wait until the required throttle hits max throttle
+    wait until requiredThrottle >= 1.
 }
 
 function performSuicideBurn {
-    local velocityRampDown is 20.
-    lock throttle to max(abs(ship:verticalSpeed) / velocityRampDown, 0.1).
+    lock throttle to calculateRequiredThrottle().
+    local comHeight is 10.
 
-    local comHeight is 5.5.
-
-    wait until alt:radar < comHeight or ship:verticalspeed >= -5.
-
-    // If we're at the surface, kill the throttle
-    // If we're not yet at the surface but velocity is low, then keep throttle
-    // at a level that keeps velocity constant
-    if (alt:radar < comHeight) {
-        lock throttle to 0.
-    } else {
-        lock throttle to calculateHoverThrottle().
-        wait until alt:radar < comHeight.
-        lock throttle to 0.
-    }
+    wait until alt:radar < comHeight.
+    lock throttle to 0.
 }
 
-// Calculates how far below the ship's current point the ship would travel if
-// it applied max thrust right now
-function calculateMaxDownwardTravel {
-    // How long would it take to cancel out our current velocity?
-    local t is calculateManeuverBurnTime(ship:velocity:surface:mag).
-
-    // How far would the ship travel in that time?
-    local F is (shipPossibleThrust() * 1000) - calculateGravitationalForce().
-    local a is F / (ship:mass * 1000).
+// Calculates the throttle required to ensure we have the correct acceleration such
+// that we reach 0 velocity as we reach the surface
+function calculateRequiredThrottle {
     local u is ship:velocity:surface:mag.
+    local s is alt:radar - 10.
+    local requiredAcceleration is (u^2) / (2*s).
 
-    return (u * t) - ((a * t^2)/2).
-}
+    local netMaxThrust is ship:availableThrust * 1000 - calculateGravity().
+    local maxAcceleration is netMaxThrust / (ship:mass * 1000).
 
-// Calculates the throttle requires to keep the current downward velocity constant
-function calculateHoverThrottle {
-    local g is calculateGravitationalForce().
-    local requiredForce is ship:mass * g.
-
-    return requiredForce / shipPossibleThrust().
+    return requiredAcceleration / maxAcceleration.
 }

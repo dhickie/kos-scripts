@@ -162,9 +162,15 @@ function calculateOrbitNormal {
     return vCrs(pos, vel).
 }
 
-// Calculates the current gravitational force being exherted on the ship
-function calculateGravitationalForce {
-    return ship:body:mu / ship:body:position:mag^2.
+// Calculates the gravitational force on the surface below the ship's current position
+function calculateSurfaceGravity {
+    local radius is ship:body:position:mag - alt:radar.
+    return (ship:body:mu * ship:mass * 1000) / radius^2.
+}
+
+// Calculates the gravitational force currently acting on the ship
+function calculateGravity {
+    return (ship:body:mu * ship:mass * 1000) / ship:body:position:mag^2.
 }
 
 // Calculates the lateral velocity of the ship parallel to the SOI body

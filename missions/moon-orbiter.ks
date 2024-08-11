@@ -5,16 +5,16 @@ runOncePath("0:/operations/launch.ks").
 runOncePath("0:/operations/matchInclination.ks").
 runOncePath("0:/operations/transfer.ks").
 runOncePath("0:/operations/orbit.ks").
+runOncePath("0:/utilities/parts.ks").
 
-if (ship:status = "prelaunch") {
+identifyShipParts().
+
+//if (ship:status = "prelaunch") {
     // Set target body
     set target to targetBody.
     
     // Launch the ship
-    launchFromKerbin().
-
-    // Open the solar panels
-    toggle ag4.
+    //launchFromKerbin().
     
     // Match inclination to the target if we're sufficiently off to warrant it
     if abs(target:orbit:inclination - ship:orbit:inclination) > 0.2 {
@@ -26,4 +26,7 @@ if (ship:status = "prelaunch") {
 
     // Set the inclination around the equator to 0
     matchInclinationToEquator().
-}
+
+    // Kill any rotation of the ship
+    lock steering to "kill".
+//}

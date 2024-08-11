@@ -1,7 +1,8 @@
 // Dependencies
+runOncePath("0:/operations/orbit.ks").
 runOncePath("0:/utilities/orbit.ks").
 runOncePath("0:/utilities/geocoordinates.ks").
-runOncePath("0:/operations/orbit.ks").
+runOncePath("0:/utilities/parts.ks").
 
 function launchFromKerbin {
     rcs on.
@@ -15,7 +16,7 @@ function launchFromKerbin {
 function launchFromVacuum {
     parameter targetAltitude.
 
-    set ag3 to false. // Raise ladder
+    raiseLadders().
     doVacuumLaunch(targetAltitude).
     circulariseOrbit(eta:apoapsis).
 }
@@ -53,6 +54,8 @@ function doKerbinLaunch {
 
     // Wait until we get out of atmo before continuing
     wait until alt:radar > 70000.
+    extendLauncherSolar().
+    extendLauncherComms().
 }
 
 function doVacuumLaunch {
