@@ -6,6 +6,7 @@ runOncePath("0:/utilities/vector.ks").
 runOncePath("0:/utilities/kos.ks").
 runOncePath("0:/utilities/geocoordinates.ks").
 runOncePath("0:/utilities/parts.ks").
+runOncePath("0:/utilities/surface.ks").
 
 function land {
     parameter lat, lng. // Position of the landing site 
@@ -97,29 +98,16 @@ function killLateralVelocityAboveLandingSite {
 
 function waitUntilSuicideBurn {
     // Lock a variable to show the throttle required to stop the ship at the surface
-    lock requiredThrottle to calculateRequiredThrottle().
+    lock requiredThrottle to calculateDescentThrottleToSurface().
 
     // Wait until the required throttle hits max throttle
     wait until requiredThrottle >= 1.
 }
 
 function performSuicideBurn {
-    lock throttle to calculateRequiredThrottle().
+    lock throttle to calculateDescentThrottleToSurface().
     local comHeight is 10.
 
     wait until alt:radar < comHeight.
     lock throttle to 0.
-}
-
-// Calculates the throttle required to ensure we have the correct acceleration such
-// that we reach 0 velocity as we reach the surface
-function calculateRequiredThrottle {
-    local u is ship:velocity:surface:mag.
-    local s is alt:radar - 10.
-    local requiredAcceleration is (u^2) / (2*s).
-
-    local netMaxThrust is ship:availableThrust * 1000 - calculateGravity().
-    local maxAcceleration is netMaxThrust / (ship:mass * 1000).
-
-    return requiredAcceleration / maxAcceleration.
 }

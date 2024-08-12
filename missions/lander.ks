@@ -22,4 +22,3 @@ until false {
         toggle ag2.
     }
 }
-
