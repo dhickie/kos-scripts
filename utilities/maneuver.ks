@@ -149,7 +149,7 @@ function calculateStoppingDistance {
     local t is calculateManeuverBurnTime((ship:velocity:orbit - orbitable:velocity:orbit):mag).
 
     // How far would the ship travel in that time?
-    local F is shipPossibleThrust().
+    local F is ship:availableThrust.
     local a is F / ship:mass.
     local u is ship:velocity:surface:mag.
 

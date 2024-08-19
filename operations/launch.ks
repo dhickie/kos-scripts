@@ -3,12 +3,14 @@ runOncePath("0:/operations/orbit.ks").
 runOncePath("0:/utilities/orbit.ks").
 runOncePath("0:/utilities/geocoordinates.ks").
 runOncePath("0:/utilities/parts.ks").
+runOncePath("0:/utilities/stage.ks").
 
 function launchFromKerbin {
     rcs on.
 
     doKerbinLaunch().
     circulariseOrbit(eta:apoapsis).
+    jettisonLaunchStage().
     
     rcs off.
 }
@@ -33,14 +35,7 @@ function doKerbinLaunch {
     stage.
 
     // Setup staging trigger
-    local maxAvailableThrust is ship:availableThrustAt(0).
-    when (ship:availableThrustAt(0) < maxAvailableThrust) then {
-        wait until stage:ready.
-        stage.
-        wait 0.1.
-        set maxAvailableThrust to ship:availableThrustAt(0).
-        preserve.
-    }
+    setupStagingTrigger().
 
     // Wait until start of gravity turn, and begin
     wait until alt:radar > 10000.

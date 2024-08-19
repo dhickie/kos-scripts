@@ -173,6 +173,19 @@ function calculateGravity {
     return (ship:body:mu * ship:mass * 1000) / ship:body:position:mag^2.
 }
 
+// Calculates the effective gravitational force acting on the ship given
+// its surface velocity and the rate the surface is falling away due to
+// curviture
+function calculateEffectiveGravity {
+    local radius is ship:body:position:mag.
+    local planetRadius is ship:body:radius.
+    local circumference is constant:pi * radius * 2.
+    local shipAngularVelocity is (ship:groundSpeed / circumference) * 360.
+    local fallRate is planetRadius - (planetRadius * cos(shipAngularVelocity)).
+
+    return ((ship:body:mu / radius^2) - fallRate) * ship:mass * 1000.
+}
+
 // Calculates the lateral velocity of the ship parallel to the SOI body
 // at the provided time
 function calculateLateralSurfaceVelocity {
